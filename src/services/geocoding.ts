@@ -31,7 +31,7 @@ export function createGeocoder(cache: ICache) {
         lat: r.latitude as number,
         lon: r.longitude as number,
         name: r.name ?? q,
-        displayName: [r.name, r.admin1, r.country].filter(Boolean).join(' — '),
+        displayName: [r.name, r.admin1, r.country].filter(Boolean).join(', '),
         admin1: r.admin1,
         country: r.country,
         id: `${(r.latitude as number).toFixed(4)},${(r.longitude as number).toFixed(4)}`,

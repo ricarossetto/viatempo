@@ -21,7 +21,7 @@ export function initMap(el: HTMLElement): MapHandle {
   // NÃO usar CARTO basemaps: passaram a exigir API key (watermark "API KEY REQUIRED").
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors · Clima: Open-Meteo.com',
+    attribution: '&copy; OpenStreetMap contributors, clima: Open-Meteo.com',
   }).addTo(map);
   let layer: L.LayerGroup | null = null;
 
@@ -51,9 +51,9 @@ export function initMap(el: HTMLElement): MapHandle {
         fillOpacity: 0.9,
       })
         .bindPopup(
-          `<b>${hour}</b> · km ${Math.round(s.distKm)}<br>${info.icon} ${info.label}<br>` +
-            `${s.weather.tempC.toFixed(1)}°C · chuva ${Math.round(s.weather.precipitationProb)}%<br>` +
-            `vento ${Math.round(s.weather.windKmh)} km/h · ${s.reason}`,
+          `<b>${hour}</b> (km ${Math.round(s.distKm)})<br>${info.icon} ${info.label}<br>` +
+            `${s.weather.tempC.toFixed(1)}°C, chuva ${Math.round(s.weather.precipitationProb)}%<br>` +
+            `vento ${Math.round(s.weather.windKmh)} km/h, ${s.reason}`,
         )
         .addTo(layer);
     }

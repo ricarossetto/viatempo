@@ -15,7 +15,7 @@ export function wmoToLabel(code: number): WmoInfo {
   if (code >= 71 && code <= 77) return { label: 'Neve', icon: '❄️' };
   if (code >= 80 && code <= 82) return { label: 'Pancadas de chuva', icon: '🌧️' };
   if (code >= 95) return { label: 'Tempestade', icon: '⛈️' };
-  return { label: '—', icon: '❓' };
+  return { label: 's/d', icon: '❓' };
 }
 
 /** Peso 0-100 do código WMO para o hazard index. */

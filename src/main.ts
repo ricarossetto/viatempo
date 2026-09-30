@@ -11,7 +11,7 @@ app.innerHTML = `
 <header>
   <div class="brand"><img src="/favicon.svg" alt="" /> Clima de estrada</div>
   <h1>Previsão do tempo da sua rota</h1>
-  <p class="lede">Diga de onde sai, para onde vai e a que horas. A gente mostra como o tempo vai estar em cada trecho do caminho — chuva, neblina, vento — na hora em que você passar por lá.</p>
+  <p class="lede">Diga de onde sai, para onde vai e a que horas. A gente mostra o tempo em cada trecho do caminho na hora em que você passar por lá: chuva, neblina e vento.</p>
 </header>
 <section class="panel">
   <form class="form" id="searchForm">
@@ -30,7 +30,7 @@ app.innerHTML = `
 <div class="summary" id="summary"></div>
 <div id="map" role="img" aria-label="Mapa da rota com pontos de previsão do tempo"></div>
 <div class="roadstrip" id="timeline"></div>
-<footer>Trajeto por <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> (roteamento OSRM) · clima por <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> (CC-BY 4.0). Sem cadastro, sem chave.</footer>
+<footer>Trajeto por <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> (roteamento OSRM). Clima por <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> (CC-BY 4.0). Sem cadastro, sem chave.</footer>
 `;
 
 const fromEl = app.querySelector<HTMLInputElement>('#from')!;
@@ -53,8 +53,8 @@ const shiftLabel = app.querySelector<HTMLOutputElement>('#shiftLabel')!;
   departEl.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-let fromPlace: Place | null = { lat: -28.3879, lon: -53.9153, name: 'Ijuí', displayName: 'Ijuí — RS', id: '-28.3879,-53.9153' };
-let toPlace: Place | null = { lat: -30.0346, lon: -51.2177, name: 'Porto Alegre', displayName: 'Porto Alegre — RS', id: '-30.0346,-51.2177' };
+let fromPlace: Place | null = { lat: -28.3879, lon: -53.9153, name: 'Ijuí', displayName: 'Ijuí, RS', id: '-28.3879,-53.9153' };
+let toPlace: Place | null = { lat: -30.0346, lon: -51.2177, name: 'Porto Alegre', displayName: 'Porto Alegre, RS', id: '-30.0346,-51.2177' };
 let basePlan: Awaited<ReturnType<typeof planner.planTrip>> | null = null;
 
 const mapCtl = initMap(app.querySelector<HTMLDivElement>('#map')!);
@@ -116,7 +116,7 @@ function renderPlan() {
           `<time>${fmtHour(s.atISO)}</time><span class="km">km ${Math.round(s.distKm)}</span>` +
           `<span class="icon">${info.icon}</span><span class="cond">${info.label}</span>` +
           `<span class="temp">${s.weather.tempC.toFixed(0)}°</span>` +
-          `<span class="meta">Chuva ${Math.round(s.weather.precipitationProb)}% · Vento ${Math.round(s.weather.windKmh)} km/h</span>` +
+          `<span class="meta">Chuva ${Math.round(s.weather.precipitationProb)}%, vento ${Math.round(s.weather.windKmh)} km/h</span>` +
           `<span class="reason">${s.reason}</span></div></div>`;
       })
       .join('');
@@ -167,7 +167,7 @@ shiftEl.addEventListener('input', () => {
 formEl.addEventListener('submit', async (ev) => {
   ev.preventDefault();
   if (!fromPlace || !toPlace) {
-    setStatus('error', 'Escolha a origem e o destino nas sugestões — ou mantenha o exemplo Ijuí → Porto Alegre.');
+    setStatus('error', 'Escolha a origem e o destino nas sugestões, ou mantenha o exemplo Ijuí → Porto Alegre.');
     return;
   }
   if (!departEl.value) {
