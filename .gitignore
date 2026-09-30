@@ -19,6 +19,10 @@ dist-ssr
 # Evidências do e2e (regeneráveis com npm run test:e2e)
 e2e/evidencias/
 
+# Cloudflare Wrangler (gerados, com segredos locais)
+.wrangler
+.dev.vars*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -56,3 +56,12 @@ Memória operacional do projeto. Atualizar quando o usuário corrigir algo ou im
 - Commits em PT, curtos, na master. Nada de push/PR sem pedido.
 - Não versionar: `.opencode/` (skills da IDE do usuário), `**/__pycache__/`,
   `e2e/evidencias/` (regenerar com `npm run test:e2e`). Um objetivo por commit.
+
+## Deploy (Cloudflare Workers + Static Assets)
+
+- Config: `wrangler.jsonc` (`clima-de-estrada`, `./dist`, SPA fallback,
+  `run_worker_first: ["/api/*"]`). Frontend 100% client-side; Worker só tem
+  `GET /api/health` (ver `worker/`).
+- Scripts: `npm run deploy` (build + publica), `npm run cf:dev` (ambiente CF local).
+- Deploy automático via Workers Builds ligado ao GitHub (configurar no dashboard).
+- Nunca commitar `.dev.vars` nem tokens. Nunca fazer deploy sem pedido explícito.
