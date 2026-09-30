@@ -1,0 +1,14 @@
+{
+  "name": "ViaTempo",
+  "short_name": "ViaTempo",
+  "description": "Previsão do tempo ao longo da sua rota, no horário em que você passar por cada trecho.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#e5ebe8",
+  "theme_color": "#0f2a26",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

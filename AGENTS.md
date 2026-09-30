@@ -1,4 +1,4 @@
-# AGENTS.md: Previsão do tempo da rota
+# AGENTS.md: ViaTempo
 
 Memória operacional do projeto. Atualizar quando o usuário corrigir algo ou impuser restrição.
 
@@ -64,9 +64,9 @@ Memória operacional do projeto. Atualizar quando o usuário corrigir algo ou im
 
 ## Deploy (Cloudflare Workers + Static Assets)
 
-- Config: `wrangler.jsonc` (`clima-de-estrada`, `./dist`, SPA fallback,
+- Config: `wrangler.jsonc` (`viatempo`, `./dist`, SPA fallback,
   `run_worker_first: ["/api/*"]`). Frontend 100% client-side; Worker só tem
-  `GET /api/health` (ver `worker/`).
+  `GET /api/health` (ver `worker/`). Worker legado `clima-de-estrada` segue online.
 - Scripts: `npm run deploy` (build + publica), `npm run cf:dev` (ambiente CF local).
 - Deploy automático via Workers Builds ligado ao GitHub (configurar no dashboard).
 - Nunca commitar `.dev.vars` nem tokens. Nunca fazer deploy sem pedido explícito.

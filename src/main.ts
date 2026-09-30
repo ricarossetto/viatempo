@@ -17,12 +17,12 @@ app.innerHTML = `
 <a class="skip" href="#wxPanel">Pular para a previsão</a>
 <header id="hero">
   <div class="hero-full">
-    <div class="brand"><img src="/favicon.svg" alt="" /> Clima de estrada</div>
+    <div class="brand"><img src="/favicon.svg" alt="" /> ViaTempo</div>
     <h1>Saiba o tempo que você vai encontrar pelo caminho.</h1>
     <p class="lede">Veja chuva, vento, temperatura e visibilidade no horário em que você passar por cada trecho.</p>
   </div>
   <div class="hero-mini">
-    <span class="brand"><img src="/favicon.svg" alt="" /> Clima de estrada</span>
+    <span class="brand"><img src="/favicon.svg" alt="" /> ViaTempo</span>
     <p class="hero-route"><b id="hmFrom">Ijuí</b><span aria-hidden="true"> → </span><b id="hmTo">Porto Alegre</b></p>
     <p class="hero-time">saída <b id="hmTime">08:00</b></p>
     <button type="button" class="ghost" id="editSearch">Alterar</button>
@@ -45,7 +45,7 @@ app.innerHTML = `
   <div class="ribbon" id="ribbon"></div>
 </section>
 <div class="map-wrap">
-  <div id="map" role="img" aria-label="Mapa da rota com pontos de previsão do tempo"></div>
+  <div id="map" role="img" aria-label="Mapa da rota ViaTempo com pontos de previsão do tempo"></div>
   <p class="map-hint" id="mapHint">Sua previsão aparece ao longo da estrada. Escolha origem, destino e horário para começar.</p>
 </div>
 <fieldset class="routes chips" id="routesFs" hidden>

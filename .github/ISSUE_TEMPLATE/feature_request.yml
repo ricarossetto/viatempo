@@ -1,0 +1,20 @@
+name: Feature request
+description: Suggest an idea for ViaTempo
+body:
+  - type: textarea
+    attributes:
+      label: Problem
+      description: What trip-planning problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposal
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    attributes:
+      label: Additional context

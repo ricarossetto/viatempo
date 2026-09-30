@@ -1,7 +1,7 @@
 @import "./styles/tokens.css";
 @import "./styles/motion.css";
 
-/* Clima de estrada V3: previsão protagonista, rotas como eixo.
+/* ViaTempo — sistema visual: previsão protagonista, rotas como eixo.
    Componentes por seção. Tokens em styles/tokens.css, motion em styles/motion.css. */
 
 #app {

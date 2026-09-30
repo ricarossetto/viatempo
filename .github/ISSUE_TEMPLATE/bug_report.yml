@@ -1,0 +1,32 @@
+name: Bug report
+description: Report something broken in ViaTempo
+body:
+  - type: input
+    attributes:
+      label: Browser / device
+      placeholder: Firefox 140 on Android 14
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      placeholder: 1. Enter origin… 2. Click…
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Actual
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Approximate route (no personal addresses)
+      placeholder: Ijuí → Porto Alegre
+  - type: textarea
+    attributes:
+      label: Screenshot (optional)
