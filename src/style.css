@@ -664,6 +664,154 @@ input[type="range"]:focus-visible,
   transition: transform 500ms var(--ease-out);
 }
 
+/* Markers de checkpoint: bolha branca com anel de hazard + ícone do clima. */
+.wxm-wrap {
+  background: none;
+  border: none;
+}
+
+.wxm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(251, 253, 251, 0.96);
+  border: 3px solid var(--ok);
+  box-shadow: 0 2px 7px rgba(16, 35, 30, 0.45);
+  transition: transform var(--t-fast) var(--ease-out);
+}
+
+.wxm.atencao {
+  border-color: var(--amber-dot);
+}
+
+.wxm.perigo {
+  border-color: var(--bad);
+}
+
+.wxm-wrap.active .wxm,
+.wxm-wrap:hover .wxm {
+  transform: scale(1.28);
+}
+
+.wxm svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wxm svg * {
+  transform-box: fill-box;
+}
+
+.wxm .sun-core {
+  fill: #e9a13b;
+  stroke: #c07f1a;
+  stroke-width: 1.4;
+}
+
+.wxm .rays {
+  stroke: #e9a13b;
+  stroke-width: 1.8;
+  transform-origin: 12px 12px;
+  animation: wx-spin 14s linear infinite;
+}
+
+.wxm .puff {
+  fill: #dfe7e2;
+  stroke: #5f7a72;
+  stroke-width: 1.6;
+  animation: wx-drift 4s ease-in-out infinite alternate;
+}
+
+.wxm .mist {
+  stroke: #7d8f89;
+  stroke-width: 1.8;
+}
+
+.wxm .drops,
+.wxm .drizzle {
+  stroke: #3b82c4;
+  stroke-width: 1.8;
+}
+
+.wxm .drops line,
+.wxm .drizzle line,
+.wxm .flakes circle {
+  animation: wx-fall 1.7s ease-in infinite;
+}
+
+.wxm .drizzle line {
+  animation-duration: 2.4s;
+  opacity: 0.75;
+}
+
+.wxm .drops line:nth-child(2),
+.wxm .drizzle line:nth-child(2),
+.wxm .flakes circle:nth-child(2) {
+  animation-delay: 0.55s;
+}
+
+.wxm .drops line:nth-child(3),
+.wxm .drizzle line:nth-child(3),
+.wxm .flakes circle:nth-child(3) {
+  animation-delay: 1.1s;
+}
+
+.wxm .flakes {
+  fill: #7fb3d5;
+}
+
+.wxm .bolt {
+  fill: #e0a83c;
+  stroke: #a86e14;
+  stroke-width: 1.2;
+  animation: wx-blink 2.8s ease-in-out infinite;
+}
+
+@keyframes wx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes wx-drift {
+  from {
+    transform: translateX(-0.8px);
+  }
+  to {
+    transform: translateX(0.8px);
+  }
+}
+
+@keyframes wx-fall {
+  0% {
+    transform: translateY(-1.5px);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(1.5px);
+    opacity: 0;
+  }
+}
+
+@keyframes wx-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
 /* Popup meteorológico limpo. */
 .wx-pop-wrap .leaflet-popup-content-wrapper {
   border-radius: 12px;
@@ -1132,6 +1280,10 @@ footer a {
   *::after {
     animation: none !important;
     transition: none !important;
+  }
+
+  .wxm svg * {
+    animation: none !important;
   }
 
   .roadstrip {

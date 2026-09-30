@@ -3,6 +3,7 @@ import 'leaflet/dist/leaflet.css';
 import type { GeoPoint, RouteCandidate, TimelineSample } from '../core/types';
 import { cumulativeKm } from '../core/sampling';
 import { wmoToLabel } from '../lib/wmo';
+import { weatherKind, weatherSvg } from './weatherIcons';
 
 const HAZARD_COLOR: Record<TimelineSample['hazard'], string> = {
   ok: '#1f9d55',
@@ -137,7 +138,7 @@ export function initMap(el: HTMLElement): MapHandle {
   let selectedLines: L.Polyline[] = [];
   /** Linhas visuais das candidatas não selecionadas (estilo muda no preview). */
   let candidateLines = new Map<string, L.Polyline>();
-  let sampleMarkers: L.CircleMarker[] = [];
+  let sampleMarkers: L.Marker[] = [];
   let sampleTimeline: TimelineSample[] = [];
   let carMarker: L.Marker | null = null;
   let highlighted = -1;
@@ -246,13 +247,16 @@ export function initMap(el: HTMLElement): MapHandle {
       }).addTo(layer);
       selectedLines.push(line);
     }
-    // markers de checkpoint
+    // markers de checkpoint: ícone do clima dentro de bolha com anel de hazard
     for (const m of sampleMarkers) layer.removeLayer(m);
     sampleMarkers = timeline.map((s, i) => {
-      const m = L.circleMarker([s.point.lat, s.point.lon], {
-        radius: 7, color: HAZARD_COLOR[s.hazard], fillColor: HAZARD_COLOR[s.hazard],
-        fillOpacity: 0.95, weight: 2,
-      })
+      const icon = L.divIcon({
+        className: 'wxm-wrap',
+        html: `<span class="wxm ${s.hazard}"><svg viewBox="0 0 24 24" aria-hidden="true">${weatherSvg(weatherKind(s.weather.weatherCode))}</svg></span>`,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
+      });
+      const m = L.marker([s.point.lat, s.point.lon], { icon, title: `${wmoToLabel(s.weather.weatherCode).label} ${Math.round(s.weather.tempC)}°` })
         .bindPopup(popupHtml(s), { className: 'wx-pop-wrap', closeButton: false })
         .on('click', () => sampleClickCb?.(i))
         .addTo(layer as L.LayerGroup);
@@ -268,10 +272,7 @@ export function initMap(el: HTMLElement): MapHandle {
 
   function highlightSample(index: number | null) {
     sampleMarkers.forEach((m, i) => {
-      const s = sampleTimeline[i];
-      if (!s) return;
-      const active = index === i;
-      m.setStyle({ radius: active ? 11 : 7, weight: active ? 3 : 2 });
+      m.getElement()?.classList.toggle('active', index === i);
     });
     highlighted = index ?? -1;
   }
