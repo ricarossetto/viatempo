@@ -50,3 +50,5 @@ Memória operacional do projeto. Atualizar quando o usuário corrigir algo ou im
 ## Git
 
 - Commits em PT, curtos, na master. Nada de push/PR sem pedido.
+- Não versionar: `.opencode/` (skills da IDE do usuário), `**/__pycache__/`,
+  `e2e/evidencias/` (regenerar com `npm run test:e2e`). Um objetivo por commit.
