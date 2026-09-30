@@ -1,32 +1,32 @@
-name: Bug report
-description: Report something broken in ViaTempo
+name: Bug report · Relato de bug
+description: Report something broken in ViaTempo · Relate algo quebrado no ViaTempo
 body:
   - type: input
     attributes:
-      label: Browser / device
+      label: Browser / device · Navegador / dispositivo
       placeholder: Firefox 140 on Android 14
     validations:
       required: true
   - type: textarea
     attributes:
-      label: Steps to reproduce
-      placeholder: 1. Enter origin… 2. Click…
+      label: Steps to reproduce · Passos para reproduzir
+      placeholder: 1. Enter origin… 2. Click… / 1. Digite a origem… 2. Clique…
     validations:
       required: true
   - type: textarea
     attributes:
-      label: Expected
+      label: Expected · Esperado
     validations:
       required: true
   - type: textarea
     attributes:
-      label: Actual
+      label: Actual · O que aconteceu
     validations:
       required: true
   - type: input
     attributes:
-      label: Approximate route (no personal addresses)
+      label: Approximate route (no personal addresses) · Rota aproximada (sem endereços pessoais)
       placeholder: Ijuí → Porto Alegre
   - type: textarea
     attributes:
-      label: Screenshot (optional)
+      label: Screenshot (optional) · Captura de tela (opcional)

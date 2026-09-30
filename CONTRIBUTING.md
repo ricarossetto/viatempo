@@ -2,6 +2,8 @@
 
 Short and practical. ViaTempo is a small client-side app; keep it that way.
 
+*[Ler em português](./CONTRIBUTING.pt-BR.md)*
+
 ## Setup
 
 ```bash
@@ -13,7 +15,7 @@ npm run dev
 
 1. Create a focused branch for one change.
 2. Keep the change small and reviewable.
-3. Run the checks below before opening a PR (once the GitHub repo exists).
+3. Run the checks below before opening a PR.
 
 ## Checks
 

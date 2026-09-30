@@ -1,20 +1,20 @@
-name: Feature request
-description: Suggest an idea for ViaTempo
+name: Feature request · Sugestão de recurso
+description: Suggest an idea for ViaTempo · Sugira uma ideia para o ViaTempo
 body:
   - type: textarea
     attributes:
-      label: Problem
-      description: What trip-planning problem does this solve?
+      label: Problem · Problema
+      description: What trip-planning problem does this solve? · Que problema de planejamento de viagem isso resolve?
     validations:
       required: true
   - type: textarea
     attributes:
-      label: Proposal
+      label: Proposal · Proposta
     validations:
       required: true
   - type: textarea
     attributes:
-      label: Alternatives considered
+      label: Alternatives considered · Alternativas consideradas
   - type: textarea
     attributes:
-      label: Additional context
+      label: Additional context · Contexto adicional
