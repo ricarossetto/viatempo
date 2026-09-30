@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test:e2e": "node e2e/autodebug.mjs",
+    "test:prod": "node e2e/smoke-prod.mjs",
     "test:routing": "node e2e/routing.test.mjs",
     "test:journey": "esbuild e2e/journey.test.mjs --bundle --platform=node --format=esm --outfile=node_modules/.cache/journey.test.mjs --log-level=error && node node_modules/.cache/journey.test.mjs",
     "cf:dev": "npm run build && wrangler dev",

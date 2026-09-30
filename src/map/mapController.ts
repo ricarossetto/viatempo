@@ -190,7 +190,9 @@ export function initMap(el: HTMLElement): MapHandle {
   let candidateLines = new Map<string, L.Polyline>();
   let sampleMarkers: L.Marker[] = [];
   let sampleTimeline: TimelineSample[] = [];
-  let markerDensity: MarkerDensity = 'summary';
+  // Todos os checkpoints sempre visíveis: decisão de produto (o usuário
+  // quer ver o tempo ao longo de toda a rota sem precisar clicar ou zoom).
+  let markerDensity: MarkerDensity = 'detailed';
   let destMarker: L.Marker | null = null;
   let pendingTimers: number[] = [];
   let carMarker: L.Marker | null = null;

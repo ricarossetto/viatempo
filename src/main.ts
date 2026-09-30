@@ -254,7 +254,7 @@ function setDetailed(on: boolean) {
   detailToggle.textContent = on
     ? 'Ocultar detalhe'
     : `Ver trecho a trecho (${currentPlan()?.timeline.length ?? ''})`.trim();
-  mapCtl.setMarkerDensity(on ? 'detailed' : 'summary');
+  // Marcadores do mapa ficam sempre todos visíveis; o toggle controla só a timeline.
 }
 
 detailToggle.addEventListener('click', () => setDetailed(!session.detailed));
