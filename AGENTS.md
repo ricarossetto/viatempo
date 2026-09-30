@@ -42,10 +42,14 @@ Memória operacional do projeto. Atualizar quando o usuário corrigir algo ou im
 ## Limites conhecidos das APIs
 
 - OSRM demo: 1 req/s, sem SLA → fallback FOSSGIS em **qualquer** falha, não só 429.
+  Requests com `alternatives=3&steps=true`; refs dos steps viram nomes de
+  rodovia (sem ref → "Rota N", nunca inventar).
 - Open-Meteo: 10k req/dia, CC-BY. Exibir "Data by Open-Meteo.com" no rodapé (já está lá).
-- Geocoding Open-Meteo com `countryCode=BR`. Cache: rota 24h, clima 30min (chave com
-  a hora!), geo 7 dias.
+- Geocoding Open-Meteo com `countryCode=BR`. Cache: rota 24h (chave `route:v2:alts3`),
+  clima 30min (chave com a hora!), geo 7 dias.
 - Ordem OSRM é `lon,lat`. Fuso: `timezone=auto` + `America/Sao_Paulo` p/ exibir.
+- Arquitetura: `findRoutes` (OSRM 1x) + `planRoute` (clima da rota escolhida 1x).
+  Trocar rota/horário nunca refaz geocoding nem OSRM. Sessão em memória no `main.ts`.
 
 ## Git
 

@@ -1,4 +1,10 @@
-import type { PlanTripInput, TimelineSample, TripPlanResult } from './types';
+import type {
+  Place,
+  PlanTripInput,
+  RouteCandidate,
+  TimelineSample,
+  TripPlanResult,
+} from './types';
 import { buildTimedPoints } from './sampling';
 import { evaluateHazard } from './hazard';
 import { createCache } from '../services/cache';
@@ -6,9 +12,25 @@ import { createGeocoder } from '../services/geocoding';
 import { createRouter } from '../services/routing';
 import { createWeather } from '../services/weather';
 
+export type PlanStage = 'routing' | 'weather';
+
 export interface TripPlanner {
-  planTrip(input: PlanTripInput): Promise<TripPlanResult>;
-  /** Reposiciona a mesma timeline p/ nova partida sem fetch (slider). */
+  /** Etapa A: descobre candidatas (1 request OSRM, com cache 24h). */
+  findRoutes(origin: Place, destination: Place): Promise<RouteCandidate[]>;
+  /** Etapa C: clima da rota escolhida (1 request Open-Meteo, com cache 30min). */
+  planRoute(
+    route: RouteCandidate,
+    origin: Place,
+    destination: Place,
+    departureISO: string,
+    opts?: { onProgress?: (stage: PlanStage) => void },
+  ): Promise<TripPlanResult>;
+  /** Compat: primeira candidata + clima (fluxo antigo em uma chamada). */
+  planTrip(
+    input: PlanTripInput,
+    opts?: { onProgress?: (stage: PlanStage) => void },
+  ): Promise<TripPlanResult>;
+  /** Reposiciona a mesma timeline p/ nova partida sem fetch (preview do slider). */
   retimeTimeline(base: TripPlanResult, newDepartureISO: string): TripPlanResult;
 }
 
@@ -20,13 +42,23 @@ const weather = createWeather(cache);
 export { geocoder };
 
 export function createTripPlanner(): TripPlanner {
-  async function planTrip(input: PlanTripInput): Promise<TripPlanResult> {
+  async function findRoutes(origin: Place, destination: Place): Promise<RouteCandidate[]> {
+    return router.getRoutes(origin, destination);
+  }
+
+  async function planRoute(
+    route: RouteCandidate,
+    origin: Place,
+    destination: Place,
+    departureISO: string,
+    opts?: { onProgress?: (stage: PlanStage) => void },
+  ): Promise<TripPlanResult> {
     const maxDate = Date.now() + 6.5 * 24 * 3600_000;
-    if (new Date(input.departureISO).getTime() > maxDate) {
+    if (new Date(departureISO).getTime() > maxDate) {
       throw new Error('Saída além de 7 dias: sem previsão horária.');
     }
-    const route = await router.getRoute(input.origin, input.destination);
-    const timed = buildTimedPoints(route, input.departureISO);
+    opts?.onProgress?.('weather');
+    const timed = buildTimedPoints(route, departureISO);
     const samples = await weather.getForPoints(timed);
 
     const timeline: TimelineSample[] = timed.map((tp, i) => {
@@ -45,11 +77,11 @@ export function createTripPlanner(): TripPlanner {
     });
 
     const worst = timeline.reduce((a, b) => (b.hazardScore > a.hazardScore ? b : a), timeline[0]);
-    const arrivalISO = timeline[timeline.length - 1]?.atISO ?? input.departureISO;
+    const arrivalISO = timeline[timeline.length - 1]?.atISO ?? departureISO;
     return {
-      origin: input.origin,
-      destination: input.destination,
-      departureISO: input.departureISO,
+      origin,
+      destination,
+      departureISO,
       arrivalISO,
       route,
       timeline,
@@ -58,6 +90,17 @@ export function createTripPlanner(): TripPlanner {
         ? `${worst.reason} por volta de ${formatHour(worst.atISO)} (km ${Math.round(worst.distKm)})`
         : 'Rota limpa: sem chuva relevante no percurso.',
     };
+  }
+
+  async function planTrip(
+    input: PlanTripInput,
+    opts?: { onProgress?: (stage: PlanStage) => void },
+  ): Promise<TripPlanResult> {
+    opts?.onProgress?.('routing');
+    const routes = await findRoutes(input.origin, input.destination);
+    const first = routes[0];
+    if (!first) throw new Error('Rota não encontrada');
+    return planRoute(first, input.origin, input.destination, input.departureISO, opts);
   }
 
   function retimeTimeline(base: TripPlanResult, newDepartureISO: string): TripPlanResult {
@@ -73,7 +116,7 @@ export function createTripPlanner(): TripPlanner {
     return { ...base, departureISO: newDepartureISO, arrivalISO, timeline };
   }
 
-  return { planTrip, retimeTimeline };
+  return { findRoutes, planRoute, planTrip, retimeTimeline };
 }
 
 function formatHour(iso: string): string {

@@ -12,11 +12,16 @@ export interface Place extends GeoPoint {
   country?: string;
 }
 
-export interface RouteResult {
+/** Uma opção de trajeto retornada pelo roteador (OSRM pode devolver 1..n). */
+export interface RouteCandidate {
+  id: string;
+  rank: number;
   distanceM: number;
   durationS: number;
   geometry: GeoPoint[];
   provider: 'osrm-demo' | 'fossgis';
+  /** Nomes de rodovias/vias extraídos dos steps OSRM. Nunca inventados. */
+  roadNames: string[];
 }
 
 export interface WeatherSample {
@@ -48,7 +53,7 @@ export interface TripPlanResult {
   destination: Place;
   departureISO: string;
   arrivalISO: string;
-  route: RouteResult;
+  route: RouteCandidate;
   timeline: TimelineSample[];
   worstHazard: HazardLevel;
   summary: string;

@@ -1,4 +1,4 @@
-import type { GeoPoint, RouteResult } from '../core/types';
+import type { GeoPoint, RouteCandidate } from '../core/types';
 
 export interface TimedPoint {
   point: GeoPoint;
@@ -32,7 +32,7 @@ export function cumulativeKm(geometry: GeoPoint[]): number[] {
  * Equidistante em distância, ETA proporcional à distância (OSRM sem tráfego).
  */
 export function buildTimedPoints(
-  route: RouteResult,
+  route: RouteCandidate,
   departureISO: string,
   samplesCount?: number,
 ): TimedPoint[] {
