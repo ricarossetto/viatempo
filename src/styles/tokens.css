@@ -1,0 +1,88 @@
+/* Tokens centrais: color, surface, depth, radius, type, z.
+   Luz consistente do topo/esquerda em todas as sombras. */
+
+:root {
+  /* ---- color ---- */
+  --chassis: #e5ebe8;
+  --surface: #f2f5f3;
+  --card: #fbfdfb;
+  --recessed: #d7dfdb;
+  --ink: #10231e;
+  --muted: #57706a;
+  --line: #c8d3ce;
+  --accent: #0e7c5b;
+  --accent-deep: #0a5c46;
+  --accent-soft: #dcefe6;
+  --petrol: #0f2a26;
+  --petrol-soft: #b9cdc5;
+  --ok: #1f9d55;
+  --warn: #a86e14;
+  --bad: #bc3f2a;
+  --asphalt: #415b54;
+  --amber-dot: #c07f1a;
+
+  /* ---- depth (luz do topo/esquerda) ---- */
+  --highlight-edge: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  --shadow-panel: var(--highlight-edge), 0 1px 2px rgba(16, 35, 30, 0.07),
+    0 12px 28px -16px rgba(16, 35, 30, 0.3);
+  --shadow-control: var(--highlight-edge), 0 1px 1px rgba(16, 35, 30, 0.12),
+    0 5px 12px -6px rgba(14, 124, 91, 0.55);
+  --shadow-inset: inset 0 2px 4px rgba(16, 35, 30, 0.14), inset 0 -1px 0 rgba(255, 255, 255, 0.5);
+  --shadow-active: inset 0 2px 5px rgba(16, 35, 30, 0.22);
+
+  /* ---- radius (hierarquia: menor dentro, maior fora) ---- */
+  --radius-input: 10px;
+  --radius-button: 12px;
+  --radius-card: 14px;
+  --radius-panel: 18px;
+  --radius-map: 20px;
+
+  /* ---- type ---- */
+  --display: "Space Grotesk", system-ui, "Segoe UI", sans-serif;
+  --body: system-ui, "Segoe UI", Roboto, sans-serif;
+
+  /* ---- z ---- */
+  --z-suggest: 500;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  font-family: var(--body);
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 320px at 85% -80px, #dbe7e1 0%, transparent 60%),
+    var(--chassis);
+  transition: background 600ms ease;
+}
+
+/* Ambiente sutil conforme o pior trecho (nunca pinta a página inteira). */
+body[data-hazard="atencao"] {
+  background:
+    radial-gradient(1200px 320px at 85% -80px, #e9e2cf 0%, transparent 60%),
+    var(--chassis);
+}
+
+body[data-hazard="perigo"] {
+  background:
+    radial-gradient(1200px 320px at 85% -80px, #e8d5cd 0%, transparent 60%),
+    var(--chassis);
+}
+
+/* Textura microscópica: tira o liso digital, quase imperceptível. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}

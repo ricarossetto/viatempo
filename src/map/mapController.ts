@@ -3,7 +3,7 @@ import 'leaflet/dist/leaflet.css';
 import type { GeoPoint, RouteCandidate, TimelineSample } from '../core/types';
 import { cumulativeKm } from '../core/sampling';
 import { wmoToLabel } from '../lib/wmo';
-import { weatherKind, weatherSvg } from './weatherIcons';
+import { weatherKind, weatherSvg, iconSvg } from './weatherIcons';
 
 const HAZARD_COLOR: Record<TimelineSample['hazard'], string> = {
   ok: '#1f9d55',
@@ -24,6 +24,8 @@ const BRAND = '#0e7c5b';
 const reducedMotion =
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+export type MarkerDensity = 'summary' | 'detailed';
+
 export interface MapHandle {
   map: L.Map;
   /** Desenha todas as candidatas; selecionada ganha destaque (anima só se pedido). */
@@ -32,7 +34,9 @@ export interface MapHandle {
   /** Preview temporário (hover/focus no card): não troca a seleção. */
   previewRoute(routeId: string | null): void;
   /** Segmenta a rota selecionada pela condição de cada trecho. */
-  drawWeather(routeId: string, timeline: TimelineSample[]): void;
+  drawWeather(routeId: string, timeline: TimelineSample[], opts?: { reveal?: boolean }): void;
+  /** Quantos markers de checkpoint aparecem: só eventos ou todos. */
+  setMarkerDensity(mode: MarkerDensity): void;
   highlightSample(index: number | null): void;
   focusSample(index: number): void;
   fitAll(): void;
@@ -69,22 +73,68 @@ function hazardSegments(
   })).filter((g) => g.latlngs.length > 1);
 }
 
-function animateDraw(line: L.Polyline, ms: number) {
+function animateDraw(line: L.Polyline, ms: number, delayMs = 0) {
+  const run = () => {
+    if (reducedMotion) return;
+    const el = (line as unknown as { _path?: SVGPathElement })._path;
+    if (!el || typeof el.getTotalLength !== 'function') return;
+    const len = el.getTotalLength();
+    el.style.transition = 'none';
+    el.style.strokeDasharray = `${len}`;
+    el.style.strokeDashoffset = `${len}`;
+    void el.getBoundingClientRect();
+    el.style.transition = `stroke-dashoffset ${ms}ms cubic-bezier(0.3, 0.7, 0.3, 1)`;
+    el.style.strokeDashoffset = '0';
+    window.setTimeout(() => {
+      el.style.transition = '';
+      el.style.strokeDasharray = '';
+      el.style.strokeDashoffset = '';
+    }, ms + 60);
+  };
+  if (delayMs <= 0 || reducedMotion) run();
+  else window.setTimeout(run, delayMs);
+}
+
+function fadeIn(line: L.Polyline, ms: number) {
   if (reducedMotion) return;
   const el = (line as unknown as { _path?: SVGPathElement })._path;
-  if (!el || typeof el.getTotalLength !== 'function') return;
-  const len = el.getTotalLength();
+  if (!el) return;
   el.style.transition = 'none';
-  el.style.strokeDasharray = `${len}`;
-  el.style.strokeDashoffset = `${len}`;
+  el.style.opacity = '0';
   void el.getBoundingClientRect();
-  el.style.transition = `stroke-dashoffset ${ms}ms ease-out`;
-  el.style.strokeDashoffset = '0';
+  el.style.transition = `opacity ${ms}ms ease-out`;
+  el.style.opacity = '';
   window.setTimeout(() => {
     el.style.transition = '';
-    el.style.strokeDasharray = '';
-    el.style.strokeDashoffset = '';
-  }, ms + 50);
+    el.style.opacity = '';
+  }, ms + 60);
+}
+
+/**
+ * Índices dos markers visíveis no modo resumo: mudanças de condição mais
+ * o pior trecho (se relevante de verdade). O resto aparece no hover da
+ * timeline, no modo detalhado ou durante a revelação.
+ */
+export function eventSampleIndexes(timeline: TimelineSample[]): number[] {
+  const out: number[] = [];
+  let prevKind = '';
+  timeline.forEach((s, i) => {
+    const kind = weatherKind(s.weather.weatherCode);
+    if (kind !== prevKind) {
+      prevKind = kind;
+      out.push(i);
+    }
+  });
+  let worst = -1;
+  let worstScore = 31;
+  timeline.forEach((s, i) => {
+    if (s.hazardScore > worstScore) {
+      worstScore = s.hazardScore;
+      worst = i;
+    }
+  });
+  if (worst >= 0 && !out.includes(worst)) out.push(worst);
+  return out.sort((a, b) => a - b);
 }
 
 const originIcon = L.divIcon({
@@ -115,7 +165,7 @@ function popupHtml(s: TimelineSample): string {
   );
   return (
     `<div class="wx-pop"><div class="wx-top">${hour}, km ${Math.round(s.distKm)}</div>` +
-    `<div class="wx-cond">${info.icon} ${info.label}, ${s.weather.tempC.toFixed(0)}°</div>` +
+    `<div class="wx-cond">${iconSvg(s.weather.weatherCode, 20)} ${info.label}, ${s.weather.tempC.toFixed(0)}°</div>` +
     `<div class="wx-meta">Chuva ${Math.round(s.weather.precipitationProb)}%</div>` +
     `<div class="wx-meta">Vento ${Math.round(s.weather.windKmh)} km/h</div></div>`
   );
@@ -140,10 +190,18 @@ export function initMap(el: HTMLElement): MapHandle {
   let candidateLines = new Map<string, L.Polyline>();
   let sampleMarkers: L.Marker[] = [];
   let sampleTimeline: TimelineSample[] = [];
+  let markerDensity: MarkerDensity = 'summary';
+  let destMarker: L.Marker | null = null;
+  let pendingTimers: number[] = [];
   let carMarker: L.Marker | null = null;
   let highlighted = -1;
   let routeClickCb: ((routeId: string) => void) | null = null;
   let sampleClickCb: ((index: number) => void) | null = null;
+
+  function clearTimers() {
+    for (const t of pendingTimers) window.clearTimeout(t);
+    pendingTimers = [];
+  }
 
   function clear() {
     if (layer) layer.remove();
@@ -152,8 +210,10 @@ export function initMap(el: HTMLElement): MapHandle {
     candidateLines = new Map();
     sampleMarkers = [];
     sampleTimeline = [];
+    destMarker = null;
     carMarker = null;
     highlighted = -1;
+    clearTimers();
   }
   layer = L.layerGroup().addTo(map);
 
@@ -170,8 +230,10 @@ export function initMap(el: HTMLElement): MapHandle {
       sampleMarkers = [];
       selectedLines = [];
       sampleTimeline = [];
+      destMarker = null;
       carMarker = null;
       highlighted = -1;
+      clearTimers();
       drawBase();
     }
     drawSelected(false);
@@ -200,7 +262,23 @@ export function initMap(el: HTMLElement): MapHandle {
     const casing = L.polyline(latlngs, { weight: 10, opacity: 1, color: '#ffffff' }).addTo(layer);
     const core = L.polyline(latlngs, { weight: 5, opacity: 0.95, color: BRAND }).addTo(layer);
     selectedLines = [casing, core];
-    if (animate) animateDraw(core, 800);
+    if (animate && !reducedMotion) {
+      // casing surge suave primeiro; o core percorre a estrada em ~1100ms
+      fadeIn(casing, 350);
+      animateDraw(core, 1100);
+      pulseDest(1250);
+    }
+  }
+
+  /** Pequeno pulso de chegada no destino ao fim do draw. */
+  function pulseDest(delayMs: number) {
+    if (reducedMotion || !destMarker) return;
+    pendingTimers.push(window.setTimeout(() => {
+      destMarker?.getElement()?.classList.add('arrived');
+      pendingTimers.push(window.setTimeout(() => {
+        destMarker?.getElement()?.classList.remove('arrived');
+      }, 900));
+    }, delayMs));
   }
 
   /** (Re)desenha base: candidatas muted + hit areas. Chamar antes de drawSelected. */
@@ -230,25 +308,36 @@ export function initMap(el: HTMLElement): MapHandle {
     drawSelected(!!opts?.animate);
   }
 
-  function drawWeather(routeId: string, timeline: TimelineSample[]) {
+  function drawWeather(routeId: string, timeline: TimelineSample[], opts?: { reveal?: boolean }) {
     const route = candidates.find((r) => r.id === routeId);
     if (!route || !layer) return;
+    clearTimers();
     selectedId = routeId;
     sampleTimeline = timeline;
+    const reveal = !!opts?.reveal && !reducedMotion;
     // troca o core sólido pelos segmentos meteorológicos
     for (const l of selectedLines) layer.removeLayer(l);
     selectedLines = [];
     const latlngs = latlngsOf(route.geometry);
     const casing = L.polyline(latlngs, { weight: 10, opacity: 1, color: '#ffffff' }).addTo(layer);
     selectedLines.push(casing);
-    for (const seg of hazardSegments(route.geometry, timeline)) {
+    if (reveal) fadeIn(casing, 350);
+    const segments = hazardSegments(route.geometry, timeline);
+    const lyr = layer;
+    segments.forEach((seg, si) => {
       const line = L.polyline(seg.latlngs, {
         weight: 5, opacity: 0.95, color: HAZARD_COLOR[seg.hazard], dashArray: HAZARD_DASH[seg.hazard],
-      }).addTo(layer);
+      }).addTo(lyr);
       selectedLines.push(line);
-    }
+      // segmentos surgem em sequência, percorrendo a estrada (~1100ms no total)
+      if (reveal) animateDraw(line, 500, 250 + si * Math.max(0, Math.floor(600 / Math.max(1, segments.length))));
+    });
     // markers de checkpoint: ícone do clima dentro de bolha com anel de hazard
     for (const m of sampleMarkers) layer.removeLayer(m);
+    const visible = markerDensity === 'detailed'
+      ? timeline.map((_, i) => i)
+      : eventSampleIndexes(timeline);
+    const totalKm = timeline[timeline.length - 1]?.distKm || 1;
     sampleMarkers = timeline.map((s, i) => {
       const icon = L.divIcon({
         className: 'wxm-wrap',
@@ -260,14 +349,35 @@ export function initMap(el: HTMLElement): MapHandle {
         .bindPopup(popupHtml(s), { className: 'wx-pop-wrap', closeButton: false })
         .on('click', () => sampleClickCb?.(i))
         .addTo(layer as L.LayerGroup);
+      if (!visible.includes(i)) m.getElement()?.classList.add('wx-hidden');
+      // pop sincronizado ao draw: surge quando a linha alcança o trecho
+      if (reveal && visible.includes(i)) {
+        const delay = 250 + Math.round((s.distKm / totalKm) * 850);
+        pendingTimers.push(window.setTimeout(() => {
+          m.getElement()?.classList.add('pop');
+          pendingTimers.push(window.setTimeout(() => m.getElement()?.classList.remove('pop'), 650));
+        }, delay));
+      }
       return m;
     });
     // origem/destino próprios (sem pin padrão)
     if (timeline.length) {
       L.marker([route.geometry[0].lat, route.geometry[0].lon], { icon: originIcon, title: 'Origem' }).addTo(layer);
       const last = route.geometry[route.geometry.length - 1];
-      L.marker([last.lat, last.lon], { icon: destIcon, title: 'Destino' }).addTo(layer);
+      destMarker = L.marker([last.lat, last.lon], { icon: destIcon, title: 'Destino' }).addTo(layer);
+      if (reveal) pulseDest(1250);
     }
+  }
+
+  function setMarkerDensity(mode: MarkerDensity) {
+    if (mode === markerDensity) return;
+    markerDensity = mode;
+    const visible = markerDensity === 'detailed'
+      ? sampleTimeline.map((_, i) => i)
+      : eventSampleIndexes(sampleTimeline);
+    sampleMarkers.forEach((m, i) => {
+      m.getElement()?.classList.toggle('wx-hidden', !visible.includes(i));
+    });
   }
 
   function highlightSample(index: number | null) {
@@ -304,6 +414,7 @@ export function initMap(el: HTMLElement): MapHandle {
     selectRoute,
     previewRoute,
     drawWeather,
+    setMarkerDensity,
     highlightSample,
     focusSample,
     fitAll,

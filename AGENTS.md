@@ -50,6 +50,11 @@ Memória operacional do projeto. Atualizar quando o usuário corrigir algo ou im
 - Ordem OSRM é `lon,lat`. Fuso: `timezone=auto` + `America/Sao_Paulo` p/ exibir.
 - Arquitetura: `findRoutes` (OSRM 1x) + `planRoute` (clima da rota escolhida 1x).
   Trocar rota/horário nunca refaz geocoding nem OSRM. Sessão em memória no `main.ts`.
+- UI (V3, previsão protagonista): `src/core/journey.ts` deriva resumo + capítulos;
+  `src/ui/` tem summary, ribbon, seletor, timeline, motion e demo (DEV-only `?demo=`).
+  Mapa com densidade `summary|detailed`; hero compacta via `body[data-state]`.
+- Motion: tokens em `src/styles/motion.css`, só transform/opacity/numbers, sempre
+  com saída em reduced-motion. E2E valida primeira dobra em 1280x900.
 
 ## Git
 

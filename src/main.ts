@@ -2,19 +2,33 @@ import './style.css';
 import type { Place, RouteCandidate, TripPlanResult } from './core/types';
 import { createTripPlanner, geocoder } from './core/tripPlanner';
 import { initMap } from './map/mapController';
-import { wmoToLabel } from './lib/wmo';
+import { renderWeatherSummary, renderJourneySkeleton } from './ui/weatherSummary';
+import { renderRibbon, renderRibbonSkeleton } from './ui/forecastRibbon';
+import { renderRouteSelector, syncRouteSelector } from './ui/routeSelector';
+import { renderTimeline, renderTimelineSkeleton } from './ui/timeline';
+import { demoMode, applyDemo } from './ui/demo';
+import { summarizeJourney } from './core/journey';
 
 const planner = createTripPlanner();
+const demo = demoMode();
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
-<a class="skip" href="#summary">Pular para o resultado</a>
-<header>
-  <div class="brand"><img src="/favicon.svg" alt="" /> Clima de estrada</div>
-  <h1>Saiba o tempo que você vai encontrar pelo caminho.</h1>
-  <p class="lede">Veja chuva, vento, temperatura e visibilidade no horário em que você passar por cada trecho.</p>
+<a class="skip" href="#wxPanel">Pular para a previsão</a>
+<header id="hero">
+  <div class="hero-full">
+    <div class="brand"><img src="/favicon.svg" alt="" /> Clima de estrada</div>
+    <h1>Saiba o tempo que você vai encontrar pelo caminho.</h1>
+    <p class="lede">Veja chuva, vento, temperatura e visibilidade no horário em que você passar por cada trecho.</p>
+  </div>
+  <div class="hero-mini">
+    <span class="brand"><img src="/favicon.svg" alt="" /> Clima de estrada</span>
+    <p class="hero-route"><b id="hmFrom">Ijuí</b><span aria-hidden="true"> → </span><b id="hmTo">Porto Alegre</b></p>
+    <p class="hero-time">saída <b id="hmTime">08:00</b></p>
+    <button type="button" class="ghost" id="editSearch">Alterar</button>
+  </div>
 </header>
-<section class="panel">
+<section class="panel" id="searchPanel">
   <form class="form" id="searchForm" aria-label="Buscar previsão da rota">
     <label class="field"><span>Origem</span><input id="from" value="Ijuí, RS" autocomplete="off" placeholder="Ex.: Ijuí, RS" /><div id="fromList" class="suggest"></div></label>
     <span class="swap-arrow" aria-hidden="true">→</span>
@@ -25,17 +39,19 @@ app.innerHTML = `
 </section>
 <p class="notice" id="status" role="status"></p>
 <p class="sr-only" role="status" id="live"></p>
-<div class="result-top">
-  <div class="summary" id="summary" tabindex="-1"></div>
-  <fieldset class="routes" id="routesFs" hidden>
-    <legend>Rotas encontradas <span id="routeCount"></span></legend>
-    <div class="route-cards" id="routeCards"></div>
-  </fieldset>
-</div>
+<section id="wxPanel" aria-label="Previsão da viagem" tabindex="-1" hidden>
+  <p class="demo-badge" id="demoBadge" hidden>Demonstração com dados simulados</p>
+  <div class="summary journey" id="summary" tabindex="-1"></div>
+  <div class="ribbon" id="ribbon"></div>
+</section>
 <div class="map-wrap">
   <div id="map" role="img" aria-label="Mapa da rota com pontos de previsão do tempo"></div>
   <p class="map-hint" id="mapHint">Sua previsão aparece ao longo da estrada. Escolha origem, destino e horário para começar.</p>
 </div>
+<fieldset class="routes chips" id="routesFs" hidden>
+  <legend>Rota <span id="routeCount"></span></legend>
+  <div class="route-cards" id="routeCards"></div>
+</fieldset>
 <fieldset class="shift-panel" id="shiftFs" disabled hidden>
   <legend>E se eu sair em outro horário?</legend>
   <div class="quick" id="quickRow">
@@ -55,7 +71,10 @@ app.innerHTML = `
     <div><span>Chegada</span><b id="etaIn">–</b></div>
   </div>
 </fieldset>
-<div class="roadstrip" id="timeline" role="list" aria-label="Previsão trecho a trecho" hidden></div>
+<div class="detail-wrap" id="detailWrap" hidden>
+  <button type="button" class="ghost wide" id="detailToggle" aria-expanded="false">Ver trecho a trecho</button>
+  <div class="roadstrip" id="timeline" role="list" aria-label="Previsão trecho a trecho" hidden></div>
+</div>
 <footer>Trajeto por <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> (roteamento OSRM). Clima por <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> (CC-BY 4.0). Sem cadastro, sem chave.</footer>
 `;
 
@@ -66,7 +85,8 @@ const formEl = app.querySelector<HTMLFormElement>('#searchForm')!;
 const statusEl = app.querySelector<HTMLParagraphElement>('#status')!;
 const liveEl = app.querySelector<HTMLParagraphElement>('#live')!;
 const summaryEl = app.querySelector<HTMLDivElement>('#summary')!;
-const timelineEl = app.querySelector<HTMLDivElement>('#timeline')!;
+const ribbonEl = app.querySelector<HTMLDivElement>('#ribbon')!;
+const wxPanel = app.querySelector<HTMLElement>('#wxPanel')!;
 const routesFs = app.querySelector<HTMLElement>('#routesFs')!;
 const routeCardsEl = app.querySelector<HTMLDivElement>('#routeCards')!;
 const routeCountEl = app.querySelector<HTMLSpanElement>('#routeCount')!;
@@ -78,6 +98,12 @@ const etaOutEl = app.querySelector<HTMLElement>('#etaOut')!;
 const etaInEl = app.querySelector<HTMLElement>('#etaIn')!;
 const shiftEtaEl = app.querySelector<HTMLDivElement>('#shiftEta')!;
 const mapHintEl = app.querySelector<HTMLParagraphElement>('#mapHint')!;
+const detailWrap = app.querySelector<HTMLDivElement>('#detailWrap')!;
+const detailToggle = app.querySelector<HTMLButtonElement>('#detailToggle')!;
+const timelineEl = app.querySelector<HTMLDivElement>('#timeline')!;
+const hmFrom = app.querySelector<HTMLElement>('#hmFrom')!;
+const hmTo = app.querySelector<HTMLElement>('#hmTo')!;
+const hmTime = app.querySelector<HTMLElement>('#hmTime')!;
 const goBtn = formEl.querySelector<HTMLButtonElement>('button.primary')!;
 
 // default: amanhã 08:00 local
@@ -102,11 +128,12 @@ const session = {
   plans: new Map<string, TripPlanResult>(),
   shiftMin: 0,
   selectedStop: -1,
+  detailed: false,
   firstSearch: true,
 };
 
 const mapCtl = initMap(app.querySelector<HTMLDivElement>('#map')!);
-mapCtl.onRouteClick((id) => void selectRoute(id, true));
+mapCtl.onRouteClick((id) => void selectRoute(id));
 mapCtl.onSampleClick((i) => selectStop(i, true));
 
 function hookAutocomplete(input: HTMLInputElement, list: HTMLDivElement, set: (p: Place) => void) {
@@ -143,12 +170,6 @@ function fmtHour(iso: string): string {
   return new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
 }
 
-function fmtDur(totalS: number): string {
-  const h = Math.floor(totalS / 3600);
-  const m = Math.round((totalS % 3600) / 60);
-  return h > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${m}min`;
-}
-
 function routeName(r: RouteCandidate): string {
   return r.roadNames.length ? `Via ${r.roadNames.join(' / ')}` : `Rota ${r.rank + 1}`;
 }
@@ -162,119 +183,10 @@ function departureKey(): string {
 }
 
 function planKey(routeId: string): string {
-  return `${routeId}@${departureKey()}`;
+  return `${routeId}@${departureKey()}${demo ? `#${demo}` : ''}`;
 }
-
-/* ---------------- route cards ---------------- */
-
-function renderRouteCards() {
-  const routes = session.candidates;
-  routeCountEl.textContent = `(${routes.length})`;
-  if (routes.length < 2) {
-    routesFs.hidden = true;
-    return;
-  }
-  routesFs.hidden = false;
-  const minDur = Math.min(...routes.map((r) => r.durationS));
-  const minDist = Math.min(...routes.map((r) => r.distanceM));
-  const fastest = routes.filter((r) => r.durationS === minDur);
-  const shortest = routes.filter((r) => r.distanceM === minDist);
-  const bothSame = fastest.length === 1 && shortest.length === 1 && fastest[0].id === shortest[0].id;
-
-  routeCardsEl.innerHTML = '';
-  for (const r of routes) {
-    const label = document.createElement('label');
-    label.className = 'route-card' + (r.id === session.selectedId ? ' selected' : '');
-    const radio = document.createElement('input');
-    radio.type = 'radio';
-    radio.name = 'route';
-    radio.value = r.id;
-    radio.checked = r.id === session.selectedId;
-    radio.addEventListener('change', () => void selectRoute(r.id, false));
-    const dot = document.createElement('span');
-    dot.className = 'radio-dot';
-    dot.setAttribute('aria-hidden', 'true');
-    const body = document.createElement('span');
-    body.className = 'route-body';
-    const badges: string[] = [];
-    if (bothSame && r.id === fastest[0].id) badges.push('Mais rápida e mais curta');
-    else {
-      if (fastest.some((f) => f.id === r.id)) badges.push('Mais rápida');
-      if (shortest.some((f) => f.id === r.id)) badges.push('Mais curta');
-    }
-    const deltas: string[] = [];
-    if (r.durationS > minDur) deltas.push(`+${Math.round((r.durationS - minDur) / 60)} min`);
-    if (r.distanceM > minDist && !shortest.some((f) => f.id === r.id)) {
-      deltas.push(`+${Math.round((r.distanceM - minDist) / 1000)} km`);
-    }
-    body.innerHTML =
-      `<span class="route-name">${routeName(r)}</span>` +
-      `<span class="route-meta">${(r.distanceM / 1000).toFixed(0)} km · ${fmtDur(r.durationS)}</span>` +
-      (badges.length || deltas.length
-        ? `<span class="route-tags">${[...badges.map((b) => `<em>${b}</em>`), ...deltas.map((d) => `<i>${d}</i>`)].join('')}</span>`
-        : '');
-    label.append(radio, dot, body);
-    label.addEventListener('mouseenter', () => mapCtl.previewRoute(r.id));
-    label.addEventListener('mouseleave', () => mapCtl.previewRoute(null));
-    radio.addEventListener('focus', () => mapCtl.previewRoute(r.id));
-    radio.addEventListener('blur', () => mapCtl.previewRoute(null));
-    routeCardsEl.append(label);
-  }
-}
-
-/* ---------------- brief + timeline ---------------- */
 
 let lastWeathers: Array<{ temp: number; chuva: number }> = [];
-
-function renderBrief(plan: TripPlanResult) {
-  const title =
-    plan.worstHazard === 'ok' ? 'Viagem tranquila'
-    : plan.worstHazard === 'perigo' ? 'Alerta no caminho'
-    : 'Atenção no caminho';
-  const worst = plan.timeline.reduce((a, b) => (b.hazardScore > a.hazardScore ? b : a), plan.timeline[0]);
-  const detail =
-    plan.worstHazard === 'ok'
-      ? 'Sem chuva relevante no percurso'
-      : `Trecho de maior atenção próximo ao km ${Math.round(worst.distKm)}, por volta das ${fmtHour(worst.atISO)}.`;
-  document.body.dataset.hazard = plan.worstHazard;
-  summaryEl.innerHTML =
-    `<div class="brief-head"><span class="led ${plan.worstHazard}" aria-hidden="true"></span>` +
-    `<div><strong>${title}</strong><p>${detail}</p></div></div>` +
-    `<div class="brief-nums">` +
-    `<div><b>${(plan.route.distanceM / 1000).toFixed(0)} km</b><span>distância</span></div>` +
-    `<div><b>${fmtDur(plan.route.durationS)}</b><span>duração</span></div>` +
-    `<div><b>${fmtHour(plan.arrivalISO)}</b><span>chegada</span></div></div>` +
-    `<p class="brief-note">Tempos estimados sem trânsito ao vivo.</p>`;
-}
-
-function renderTimeline(plan: TripPlanResult, changedOnly: Array<boolean>) {
-  timelineEl.innerHTML =
-    `<div class="road" aria-hidden="true"></div>` +
-    plan.timeline
-      .map((s, i) => {
-        const info = wmoToLabel(s.weather.weatherCode);
-        const vis = s.weather.visibilityM > 0 && s.weather.visibilityM < 8000
-          ? ` · vis. ${(s.weather.visibilityM / 1000).toFixed(0)} km` : '';
-        const dupCond = s.reason.toLowerCase() === info.label.toLowerCase();
-        const reason = s.reason === 'tempo bom' || dupCond ? '' : `<span class="reason">${s.reason}</span>`;
-        return `<button type="button" class="stop ${s.hazard}${changedOnly[i] ? ' tick' : ''}" data-i="${i}" aria-label="${fmtHour(s.atISO)}, km ${Math.round(s.distKm)}, ${info.label}, ${s.weather.tempC.toFixed(0)} graus">` +
-          `<span class="dot" aria-hidden="true"></span><span class="stop-body">` +
-          `<time>${fmtHour(s.atISO)}</time><span class="km">km ${Math.round(s.distKm)}</span>` +
-          `<span class="icon" aria-hidden="true">${info.icon}</span><span class="cond">${info.label}</span>` +
-          `<span class="temp">${s.weather.tempC.toFixed(0)}°</span>` +
-          `<span class="meta">Chuva ${Math.round(s.weather.precipitationProb)}%, vento ${Math.round(s.weather.windKmh)} km/h${vis}</span>` +
-          `${reason}</span></button>`;
-      })
-      .join('');
-  timelineEl.querySelectorAll<HTMLButtonElement>('.stop').forEach((btn) => {
-    const i = Number(btn.dataset.i);
-    btn.addEventListener('mouseenter', () => mapCtl.highlightSample(i));
-    btn.addEventListener('mouseleave', () => mapCtl.highlightSample(session.selectedStop));
-    btn.addEventListener('focus', () => mapCtl.highlightSample(i));
-    btn.addEventListener('blur', () => mapCtl.highlightSample(session.selectedStop));
-    btn.addEventListener('click', () => selectStop(i, false));
-  });
-}
 
 /** Marca valores que mudaram desde o último render (highlight 500ms, sem piscar tudo). */
 function diffWeathers(plan: TripPlanResult): Array<boolean> {
@@ -290,20 +202,62 @@ function diffWeathers(plan: TripPlanResult): Array<boolean> {
   return out;
 }
 
-function renderPlan(plan: TripPlanResult) {
-  renderBrief(plan);
-  renderTimeline(plan, diffWeathers(plan));
-  mapCtl.drawWeather(plan.route.id, plan.timeline);
+function currentPlan(): TripPlanResult | undefined {
+  return session.plans.get(planKey(session.selectedId));
+}
+
+function renderAll(plan: TripPlanResult, opts?: { reveal?: boolean }) {
+  renderWeatherSummary(summaryEl, plan);
+  renderRibbon(ribbonEl, plan, {
+    onChapterHover: (i) => {
+      if (i === null) {
+        mapCtl.highlightSample(session.selectedStop);
+        return;
+      }
+      const ch = summarizeJourney(plan.timeline).chapters[i];
+      if (ch) {
+        const mid = ch.sampleIndexes[Math.floor(ch.sampleIndexes.length / 2)];
+        mapCtl.highlightSample(mid);
+      }
+    },
+    onChapterSelect: (i) => {
+      const ch = summarizeJourney(plan.timeline).chapters[i];
+      if (ch) selectStop(ch.sampleIndexes[Math.floor(ch.sampleIndexes.length / 2)], false);
+    },
+  });
+  renderTimeline(timelineEl, plan, diffWeathers(plan), timelineCallbacks());
+  mapCtl.drawWeather(plan.route.id, plan.timeline, { reveal: opts?.reveal });
+  if (opts?.reveal) {
+    summaryEl.classList.remove('reveal');
+    ribbonEl.classList.remove('reveal');
+    void summaryEl.offsetWidth;
+    summaryEl.classList.add('reveal');
+    ribbonEl.classList.add('reveal');
+  }
+  updateShiftEta(plan);
 }
 
 function selectStop(i: number, fromMap: boolean) {
   session.selectedStop = i;
   mapCtl.focusSample(i);
   if (fromMap) {
+    if (timelineEl.hidden) setDetailed(true);
     timelineEl.querySelector<HTMLButtonElement>(`.stop[data-i="${i}"]`)
       ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
   }
 }
+
+function setDetailed(on: boolean) {
+  session.detailed = on;
+  timelineEl.hidden = !on;
+  detailToggle.setAttribute('aria-expanded', String(on));
+  detailToggle.textContent = on
+    ? 'Ocultar detalhe'
+    : `Ver trecho a trecho (${currentPlan()?.timeline.length ?? ''})`.trim();
+  mapCtl.setMarkerDensity(on ? 'detailed' : 'summary');
+}
+
+detailToggle.addEventListener('click', () => setDetailed(!session.detailed));
 
 /* ---------------- fluxos ---------------- */
 
@@ -313,61 +267,56 @@ async function ensurePlan(routeId: string): Promise<TripPlanResult> {
   if (hit) return hit;
   const route = session.candidates.find((r) => r.id === routeId);
   if (!route || !session.origin || !session.destination) throw new Error('Sessão inválida');
-  const plan = await planner.planRoute(route, session.origin, session.destination, departureKey(), {
+  const raw = await planner.planRoute(route, session.origin, session.destination, departureKey(), {
     onProgress: (stage) => {
       if (stage === 'weather') setStatus('info', 'Consultando o clima desta rota…');
     },
   });
+  const plan = demo ? applyDemo(raw, demo) : raw;
   session.plans.set(key, plan);
   return plan;
 }
 
-async function selectRoute(routeId: string, fromMap: boolean) {
-  if (!session.candidates.length || routeId === session.selectedId) {
-    // já selecionada: garante destaque no mapa
-    mapCtl.selectRoute(session.selectedId);
-    if (fromMap) syncRadioCards();
+async function selectRoute(routeId: string) {
+  if (!session.candidates.length) return;
+  const changed = routeId !== session.selectedId;
+  session.selectedId = routeId;
+  session.selectedStop = -1;
+  // geometria destacada na hora; clima entra quando estiver pronto (cache ou fetch)
+  mapCtl.selectRoute(routeId);
+  syncRouteSelector(routeCardsEl, routeId);
+  if (!changed) {
     const existing = session.plans.get(planKey(routeId));
     if (existing) {
-      renderPlan(existing);
+      renderAll(existing);
       updateShiftEta(existing);
     }
     return;
   }
-  session.selectedId = routeId;
-  session.selectedStop = -1;
-  mapCtl.selectRoute(routeId);
-  syncRadioCards();
   const key = planKey(routeId);
   const hit = session.plans.get(key);
   if (hit) {
     setStatus('', '');
-    renderPlan(hit);
+    renderAll(hit);
     updateShiftEta(hit);
-    liveEl.textContent = `Rota ${routeName(session.candidates.find((r) => r.id === routeId)!)} selecionada. ${hit.summary}`;
+    liveEl.textContent = `Rota ${routeName(session.candidates.find((r) => r.id === routeId)!)} selecionada.`;
     return;
   }
-  // skeleton só na timeline; mapa e cards ficam
+  // loading local: mapa permanece, ribbon usa skeleton, timeline some por ora
   setStatus('info', 'Consultando o clima desta rota…');
-  timelineEl.innerHTML =
-    `<div class="road" aria-hidden="true"></div>` +
-    Array.from({ length: 6 }, () => `<div class="stop skel"><span class="dot"></span><div class="stop-body"><b>··:··</b></div></div>`).join('');
+  renderJourneySkeleton(summaryEl);
+  renderRibbonSkeleton(ribbonEl);
+  renderTimelineSkeleton(timelineEl);
+  syncRouteSelector(routeCardsEl, routeId);
   try {
     const plan = await ensurePlan(routeId);
     setStatus('', '');
-    renderPlan(plan);
+    renderAll(plan);
     updateShiftEta(plan);
-    liveEl.textContent = `Rota selecionada. ${plan.summary}`;
+    liveEl.textContent = 'Rota selecionada. Previsão atualizada.';
   } catch (e) {
     setStatus('error', `Não deu para ver o clima desta rota: ${(e as Error).message}. Tente de novo.`);
   }
-}
-
-function syncRadioCards() {
-  routeCardsEl.querySelectorAll<HTMLInputElement>('input[name="route"]').forEach((r) => {
-    r.checked = r.value === session.selectedId;
-    r.closest('.route-card')?.classList.toggle('selected', r.checked);
-  });
 }
 
 /* ---------------- horário ---------------- */
@@ -379,12 +328,14 @@ function setShift(min: number) {
   shiftEl.value = String(min);
   shiftLabel.textContent = `${min >= 0 ? '+' : ''}${min}min`;
   baseShiftBtn.textContent = fmtHour(session.baseDepartureISO);
-  const plan = session.plans.get(planKey(session.selectedId));
-  if (plan && session.origin) {
+  hmTime.textContent = fmtHour(departureKey());
+  const plan = currentPlan();
+  if (plan) {
     // preview instantâneo + correção com dados reais (só clima, sem OSRM)
     const preview = planner.retimeTimeline(plan, departureKey());
-    renderBrief(preview);
-    renderTimeline(preview, diffWeathers(preview));
+    renderWeatherSummary(summaryEl, preview);
+    renderRibbon(ribbonEl, preview, ribbonCallbacks(preview));
+    renderTimeline(timelineEl, preview, diffWeathers(preview), timelineCallbacks());
     updateShiftEta(preview);
   }
   window.clearTimeout(shiftTimer);
@@ -393,13 +344,37 @@ function setShift(min: number) {
       setStatus('info', 'Consultando o clima…');
       const fresh = await ensurePlan(session.selectedId);
       setStatus('', '');
-      renderPlan(fresh);
+      renderAll(fresh);
       updateShiftEta(fresh);
       liveEl.textContent = `Horário atualizado: saída ${fmtHour(fresh.departureISO)}.`;
     } catch (e) {
       setStatus('error', `Não deu para atualizar: ${(e as Error).message}. Mostrando o horário aproximado.`);
     }
   }, 700);
+}
+
+function ribbonCallbacks(plan: TripPlanResult) {
+  return {
+    onChapterHover: (i: number | null) => {
+      if (i === null) {
+        mapCtl.highlightSample(session.selectedStop);
+        return;
+      }
+      const ch = summarizeJourney(plan.timeline).chapters[i];
+      if (ch) mapCtl.highlightSample(ch.sampleIndexes[Math.floor(ch.sampleIndexes.length / 2)]);
+    },
+    onChapterSelect: (i: number) => {
+      const ch = summarizeJourney(plan.timeline).chapters[i];
+      if (ch) selectStop(ch.sampleIndexes[Math.floor(ch.sampleIndexes.length / 2)], false);
+    },
+  };
+}
+
+function timelineCallbacks() {
+  return {
+    onHighlight: (i: number | null) => mapCtl.highlightSample(i === null ? session.selectedStop : i),
+    onSelect: (i: number) => selectStop(i, false),
+  };
 }
 
 function updateShiftEta(plan: TripPlanResult) {
@@ -416,20 +391,31 @@ app.querySelector('#quickRow')!.addEventListener('click', (ev) => {
   if (btn) setShift(Number(btn.dataset.shift));
 });
 
-function setStatusPublic(kind: '' | 'info' | 'error', text: string) {
-  setStatus(kind, text);
+/* ---------------- hero compacto ---------------- */
+
+function compactHero() {
+  document.body.dataset.state = 'ready';
+  hmFrom.textContent = session.origin?.name ?? fromEl.value;
+  hmTo.textContent = session.destination?.name ?? toEl.value;
+  hmTime.textContent = fmtHour(departureKey() || session.baseDepartureISO);
 }
+
+app.querySelector('#editSearch')!.addEventListener('click', () => {
+  document.body.dataset.state = '';
+  app.querySelector('#searchPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  fromEl.focus({ preventScroll: true });
+});
 
 /* ---------------- busca ---------------- */
 
 formEl.addEventListener('submit', async (ev) => {
   ev.preventDefault();
   if (!fromPlace || !toPlace) {
-    setStatusPublic('error', 'Escolha a origem e o destino nas sugestões, ou mantenha o exemplo Ijuí → Porto Alegre.');
+    setStatus('error', 'Escolha a origem e o destino nas sugestões, ou mantenha o exemplo Ijuí → Porto Alegre.');
     return;
   }
   if (!departEl.value) {
-    setStatusPublic('error', 'Diga a que horas você pretende sair.');
+    setStatus('error', 'Diga a que horas você pretende sair.');
     return;
   }
   session.origin = fromPlace;
@@ -438,15 +424,25 @@ formEl.addEventListener('submit', async (ev) => {
   session.plans.clear();
   session.shiftMin = 0;
   session.selectedStop = -1;
+  session.detailed = false;
   lastWeathers = [];
   shiftEl.value = '0';
   shiftLabel.textContent = '+0min';
   baseShiftBtn.textContent = fmtHour(session.baseDepartureISO);
+  detailToggle.textContent = 'Ver trecho a trecho';
+  detailToggle.setAttribute('aria-expanded', 'false');
+  timelineEl.hidden = true;
 
   goBtn.disabled = true;
-  goBtn.textContent = 'Buscando…';
-  setStatusPublic('info', 'Buscando rotas…');
-  summaryEl.innerHTML = '';
+  goBtn.textContent = 'Buscando rotas…';
+  // T+150ms: hero compacta enquanto as rotas chegam (morph, sem jank)
+  window.setTimeout(() => {
+    if (goBtn.disabled) compactHero();
+  }, 150);
+  setStatus('info', 'Buscando rotas…');
+  renderJourneySkeleton(summaryEl);
+  renderRibbonSkeleton(ribbonEl);
+  wxPanel.hidden = false;
   mapHintEl.hidden = true;
   shiftFs.disabled = false;
   try {
@@ -454,25 +450,38 @@ formEl.addEventListener('submit', async (ev) => {
     if (!routes.length) throw new Error('Rota não encontrada');
     session.candidates = routes;
     session.selectedId = routes[0].id;
-    timelineEl.hidden = false;
+    // detalhe começa colapsado (progressive disclosure); shift e toggle aparecem
     shiftFs.hidden = false;
+    detailWrap.hidden = false;
     // Etapa B: mostra rotas na hora, com animação só na primeira busca
     const animate = session.firstSearch;
     session.firstSearch = false;
     mapCtl.setRouteCandidates(routes, session.selectedId, { animate });
     mapCtl.fitAll();
-    renderRouteCards();
-    setStatusPublic('info', 'Consultando o clima…');
+    renderRouteSelector(routesFs, routeCardsEl, routeCountEl, routes, session.selectedId, {
+      onSelect: (id) => void selectRoute(id),
+      onPreview: (id) => mapCtl.previewRoute(id),
+    });
+    goBtn.textContent = 'Consultando o clima…';
+    setStatus('info', 'Consultando o clima…');
     const plan = await ensurePlan(session.selectedId);
-    setStatusPublic('', '');
-    renderPlan(plan);
+    setStatus('', '');
+    app.querySelector<HTMLParagraphElement>('#demoBadge')!.hidden = !demo;
+    renderAll(plan, { reveal: reducedMotionOff() });
+    hmTime.textContent = fmtHour(plan.departureISO);
     updateShiftEta(plan);
+    detailToggle.textContent = `Ver trecho a trecho (${plan.timeline.length})`;
     liveEl.textContent = `Previsão pronta: ${plan.timeline.length} trechos, chegada ${fmtHour(plan.arrivalISO)}.`;
   } catch (e) {
-    setStatusPublic('error', `Não deu para montar a previsão: ${(e as Error).message}. Confira a conexão e tente de novo.`);
+    document.body.dataset.state = '';
+    setStatus('error', `Não deu para montar a previsão: ${(e as Error).message}. Confira a conexão e tente de novo.`);
     mapHintEl.hidden = false;
   } finally {
     goBtn.disabled = false;
     goBtn.textContent = 'Ver previsão';
   }
 });
+
+function reducedMotionOff(): boolean {
+  return typeof matchMedia !== 'function' || !matchMedia('(prefers-reduced-motion: reduce)').matches;
+}

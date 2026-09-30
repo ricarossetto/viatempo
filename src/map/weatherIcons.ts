@@ -40,7 +40,7 @@ export function weatherSvg(kind: WeatherKind): string {
     case 'sol-nuvem':
       return `<g transform="translate(-3.5,-3) scale(0.72)">${SUN}</g>` + CLOUD('puff');
     case 'nublado':
-      return `<g transform="translate(4.5,-2.5) scale(0.78)" opacity="0.55">${CLOUD('puff')}</g>` + CLOUD('puff');
+      return `<g transform="translate(4.5,-2.5) scale(0.78)" opacity="0.55">${CLOUD('puff back')}</g>` + CLOUD('puff');
     case 'nevoeiro':
       return CLOUD('puff') +
         `<g class="mist"><line x1="6" y1="19" x2="18" y2="19"/><line x1="8" y1="21.5" x2="16" y2="21.5"/></g>`;
@@ -54,4 +54,9 @@ export function weatherSvg(kind: WeatherKind): string {
       return CLOUD('puff') +
         `<g class="flakes"><circle cx="9" cy="19.5" r="1.1"/><circle cx="12.5" cy="20.5" r="1.1"/><circle cx="16" cy="19.5" r="1.1"/></g>`;
   }
+}
+
+/** SVG completo pronto para injetar (timeline, popup, ribbon). Tamanho em px. */
+export function iconSvg(code: number, size = 28): string {
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">${weatherSvg(weatherKind(code))}</svg>`;
 }
