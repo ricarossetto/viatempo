@@ -1,0 +1,24 @@
+{
+  "name": "viatempo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ViaTempo — planejador meteorológico de viagens rodoviárias",
+  "type": "module",
+  "packageManager": "npm@10",
+  "workspaces": [
+    "apps/api",
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/api",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces --if-present",
+    "test:offline": "npm run test:offline --workspace apps/api",
+    "smoke": "npm run smoke --workspace apps/api",
+    "ingest": "npm run ingest --workspace services-meteo-ingestor"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
