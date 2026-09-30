@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# Skills de terceiros e caches locais (não versionar)
+.opencode/
+**/__pycache__/
+
+# Evidências do e2e (regeneráveis com npm run test:e2e)
+e2e/evidencias/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

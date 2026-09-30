@@ -84,5 +84,15 @@ console.log(`bad requests: ${badRequests.length}`, badRequests.slice(0, 10));
 if (consoleErrors.length) fail(`${consoleErrors.length} erro(s) de console`);
 if (badRequests.length) fail(`${badRequests.length} request(s) com falha`);
 
+// Passe mobile 375px: sem rolagem horizontal na página + screenshot
+const mob = await browser.newPage({ viewport: { width: 375, height: 800 } });
+await mob.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 30000 });
+const overflow = await mob.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+console.log(`mobile 375px: overflow-x = ${overflow}px`);
+if (overflow > 1) fail(`rolagem horizontal no mobile: ${overflow}px`);
+const skipHref = await mob.getAttribute('.skip', 'href');
+if (skipHref !== '#summary') fail('skip link ausente');
+await mob.screenshot({ path: shot('04-mobile.png'), fullPage: true });
+
 await browser.close();
 console.log(process.exitCode ? 'AUTODEBUG: PROBLEMAS ENCONTRADOS' : 'AUTODEBUG PASS');

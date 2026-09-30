@@ -12,6 +12,7 @@
   --bad: #bc3f2a;
   --asphalt: #415b54;
   --shadow: 0 1px 2px rgba(16, 35, 30, 0.06), 0 10px 28px -14px rgba(16, 35, 30, 0.28);
+  --z-suggest: 500;
   --display: "Space Grotesk", system-ui, "Segoe UI", sans-serif;
   --body: system-ui, "Segoe UI", Roboto, sans-serif;
 }
@@ -68,6 +69,31 @@ header h1 {
   line-height: 1.55;
 }
 
+.skip {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  z-index: calc(var(--z-suggest) + 100);
+  background: var(--ink);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 10px;
+  transition: top 160ms ease;
+}
+
+.skip:focus {
+  top: 12px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 /* ---------- Painel de busca ---------- */
 
 .panel {
@@ -106,7 +132,8 @@ header h1 {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 12px;
+  min-height: 48px;
   width: 100%;
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
@@ -130,10 +157,18 @@ button.primary {
   border: none;
   border-radius: 10px;
   padding: 11px 22px;
+  min-height: 48px;
   cursor: pointer;
   white-space: nowrap;
+  touch-action: manipulation;
   transition: background 180ms ease, transform 120ms ease, box-shadow 180ms ease;
   box-shadow: 0 6px 16px -8px rgba(14, 124, 91, 0.7);
+}
+
+button.primary:disabled {
+  opacity: 0.6;
+  cursor: wait;
+  transform: none;
 }
 
 button.primary:hover {
@@ -158,7 +193,7 @@ input[type="range"]:focus-visible {
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 500;
+  z-index: var(--z-suggest);
   display: flex;
   flex-direction: column;
   background: #fff;
@@ -174,14 +209,16 @@ input[type="range"]:focus-visible {
 
 .suggest button {
   font: inherit;
-  font-size: 14.5px;
+  font-size: 15px;
   text-align: left;
   background: none;
   border: none;
   border-bottom: 1px solid var(--line);
-  padding: 10px 12px;
+  padding: 12px;
+  min-height: 48px;
   cursor: pointer;
   color: var(--ink);
+  touch-action: manipulation;
 }
 
 .suggest button:last-child {
@@ -209,6 +246,7 @@ input[type="range"]:focus-visible {
 
 .shift input[type="range"] {
   flex: 1;
+  min-height: 32px;
   accent-color: var(--accent);
 }
 
@@ -498,6 +536,15 @@ footer a {
 
   button.primary {
     width: 100%;
+  }
+
+  .shift {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .shift > span {
+    flex-basis: 100%;
   }
 
   #map {

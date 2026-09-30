@@ -8,13 +8,14 @@ const planner = createTripPlanner();
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
+<a class="skip" href="#summary">Pular para o resultado</a>
 <header>
   <div class="brand"><img src="/favicon.svg" alt="" /> Clima de estrada</div>
   <h1>Previsão do tempo da sua rota</h1>
   <p class="lede">Diga de onde sai, para onde vai e a que horas. A gente mostra o tempo em cada trecho do caminho na hora em que você passar por lá: chuva, neblina e vento.</p>
 </header>
 <section class="panel">
-  <form class="form" id="searchForm">
+  <form class="form" id="searchForm" aria-label="Buscar previsão da rota">
     <label class="field"><span>De onde você sai?</span><input id="from" value="Ijuí, RS" autocomplete="off" placeholder="Ex.: Ijuí, RS" /><div id="fromList" class="suggest"></div></label>
     <label class="field"><span>Para onde você vai?</span><input id="to" value="Porto Alegre, RS" autocomplete="off" placeholder="Ex.: Porto Alegre, RS" /><div id="toList" class="suggest"></div></label>
     <label class="field"><span>Que horas você sai?</span><input id="depart" type="datetime-local" /></label>
@@ -27,9 +28,10 @@ app.innerHTML = `
   <output id="shiftLabel" for="shift">+0min</output>
 </section>
 <p class="notice" id="status" role="status"></p>
-<div class="summary" id="summary"></div>
+<p class="sr-only" role="status" id="live"></p>
+<div class="summary" id="summary" tabindex="-1"></div>
 <div id="map" role="img" aria-label="Mapa da rota com pontos de previsão do tempo"></div>
-<div class="roadstrip" id="timeline"></div>
+<div class="roadstrip" id="timeline" role="list" aria-label="Previsão trecho a trecho"></div>
 <footer>Trajeto por <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> (roteamento OSRM). Clima por <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> (CC-BY 4.0). Sem cadastro, sem chave.</footer>
 `;
 
@@ -43,6 +45,8 @@ const timelineEl = app.querySelector<HTMLDivElement>('#timeline')!;
 const shiftRow = app.querySelector<HTMLElement>('#shiftRow')!;
 const shiftEl = app.querySelector<HTMLInputElement>('#shift')!;
 const shiftLabel = app.querySelector<HTMLOutputElement>('#shiftLabel')!;
+const liveEl = app.querySelector<HTMLParagraphElement>('#live')!;
+const goBtn = formEl.querySelector<HTMLButtonElement>('button.primary')!;
 
 // default: amanhã 08:00 local
 {
@@ -112,9 +116,9 @@ function renderPlan() {
     plan.timeline
       .map((s) => {
         const info = wmoToLabel(s.weather.weatherCode);
-        return `<div class="stop ${s.hazard}"><span class="dot"></span><div class="stop-body">` +
+        return `<div class="stop ${s.hazard}" role="listitem"><span class="dot" aria-hidden="true"></span><div class="stop-body">` +
           `<time>${fmtHour(s.atISO)}</time><span class="km">km ${Math.round(s.distKm)}</span>` +
-          `<span class="icon">${info.icon}</span><span class="cond">${info.label}</span>` +
+          `<span class="icon" aria-hidden="true">${info.icon}</span><span class="cond">${info.label}</span>` +
           `<span class="temp">${s.weather.tempC.toFixed(0)}°</span>` +
           `<span class="meta">Chuva ${Math.round(s.weather.precipitationProb)}%, vento ${Math.round(s.weather.windKmh)} km/h</span>` +
           `<span class="reason">${s.reason}</span></div></div>`;
@@ -157,6 +161,7 @@ shiftEl.addEventListener('input', () => {
         departureISO: shiftDate(baseDepartureISO(), Number(shiftEl.value)),
       });
       setStatus('', '');
+      liveEl.textContent = `Horário atualizado: saída ${fmtHour(shiftDate(baseDepartureISO(), Number(shiftEl.value)))}.`;
       renderPlan();
     } catch (e) {
       setStatus('error', `Não deu para atualizar: ${(e as Error).message}. Mostrando o horário aproximado.`);
@@ -177,6 +182,8 @@ formEl.addEventListener('submit', async (ev) => {
   setStatus('info', 'Buscando a rota e o clima de cada trecho…');
   summaryEl.textContent = '';
   renderSkeleton();
+  goBtn.disabled = true;
+  goBtn.textContent = 'Buscando…';
   try {
     basePlan = await planner.planTrip({
       origin: fromPlace,
@@ -189,10 +196,14 @@ formEl.addEventListener('submit', async (ev) => {
     shiftEl.disabled = false;
     shiftRow.classList.remove('disabled');
     setStatus('', '');
+    liveEl.textContent = `Previsão pronta: ${basePlan.timeline.length} trechos, chegada ${fmtHour(basePlan.arrivalISO)}.`;
     renderPlan();
   } catch (e) {
     setStatus('error', `Não deu para montar a previsão: ${(e as Error).message}. Confira a conexão e tente de novo.`);
     renderEmpty();
+  } finally {
+    goBtn.disabled = false;
+    goBtn.textContent = 'Ver previsão da rota';
   }
 });
 
