@@ -34,7 +34,9 @@ export function initMap(el: HTMLElement): MapHandle {
     clear();
     layer = L.layerGroup().addTo(map);
     const latlngs = geometry.map((g) => [g.lat, g.lon] as [number, number]);
-    L.polyline(latlngs, { weight: 5, opacity: 0.85, color: '#3b82f6' }).addTo(layer);
+    // Estilo "Google Maps": casing branca + núcleo azul
+    L.polyline(latlngs, { weight: 9, opacity: 1, color: '#ffffff' }).addTo(layer);
+    L.polyline(latlngs, { weight: 5, opacity: 0.95, color: '#1a73e8' }).addTo(layer);
     for (const s of timeline) {
       const info = wmoToLabel(s.weather.weatherCode);
       const hour = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(
