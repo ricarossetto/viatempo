@@ -51,14 +51,19 @@ export function createRouter(cache: ICache) {
       const route = parse(json, 'osrm-demo');
       cache.set(key, route, 60 * 24);
       return route;
-    } catch (e) {
-      if ((e as Error).message !== '429') throw e;
-      // fallback transparente FOSSGIS no 429
-      lastCall = Date.now();
-      const json = await fetchRoute(FALLBACK, a, b);
-      const route = parse(json, 'fossgis');
-      cache.set(key, route, 60 * 24);
-      return route;
+    } catch (primaryErr) {
+      // Qualquer falha no primário (429, timeout, bloqueio de rede) tenta o FOSSGIS.
+      try {
+        lastCall = Date.now();
+        const json = await fetchRoute(FALLBACK, a, b);
+        const route = parse(json, 'fossgis');
+        cache.set(key, route, 60 * 24);
+        return route;
+      } catch {
+        throw new Error(
+          `Rota indisponível nos dois servidores. Detalhe: ${(primaryErr as Error).message}. Tente de novo em alguns segundos.`,
+        );
+      }
     }
   }
   return { getRoute };
