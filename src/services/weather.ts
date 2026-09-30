@@ -54,10 +54,10 @@ export function createWeather(cache: ICache) {
 
   async function getForPoints(points: Array<{ point: GeoPoint; atISO: string }>): Promise<WeatherSample[]> {
     if (!points.length) return [];
-    const day = points[0].atISO.slice(0, 10);
-    const key = `wx:${day}:${points.map((p) => `${p.point.lat.toFixed(2)},${p.point.lon.toFixed(2)}`).join('|')}`;
+    // Chave inclui horário arredondado à hora: mudar a saída no mesmo dia NÃO pode reusar cache.
+    const hours = points.map((p) => p.atISO.slice(0, 13)).join('|');
+    const key = `wx:${hours}:${points.map((p) => `${p.point.lat.toFixed(2)},${p.point.lon.toFixed(2)}`).join('|')}`;
     const hit = cache.get<WeatherSample[]>(key);
-    // Só reutiliza se o horário for próximo (slider reusa sem fetch via retime; aqui é batch do dia)
     if (hit && hit.length === points.length) return hit;
     const res = await fetch(buildUrl(points));
     if (!res.ok) throw new Error(`Clima falhou (${res.status})`);

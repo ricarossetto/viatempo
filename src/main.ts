@@ -75,14 +75,12 @@ function hookAutocomplete(input: HTMLInputElement, list: HTMLDivElement, set: (p
     }, 350);
   });
 }
-hookAutocomplete(fromEl, app.querySelector('#fromList')!, (p) => (fromPlace = p));
-hookAutocomplete(toEl, app.querySelector('#toList')!, (p) => (toPlace = p));
+hookAutocomplete(fromEl, app.querySelector<HTMLDivElement>('#fromList')!, (p) => (fromPlace = p));
+hookAutocomplete(toEl, app.querySelector<HTMLDivElement>('#toList')!, (p) => (toPlace = p));
 
-function renderTimeline() {
+function renderPlan() {
   if (!basePlan) return;
-  const shiftMin = Number(shiftEl.value);
-  shiftLabel.textContent = `${shiftMin >= 0 ? '+' : ''}${shiftMin}min`;
-  const plan = shiftMin === 0 ? basePlan : planner.retimeTimeline(basePlan, shiftDate(basePlan.departureISO, shiftMin));
+  const plan = basePlan;
   summaryEl.innerHTML = `<strong>${plan.summary}</strong><br><small>${(plan.route.distanceM / 1000).toFixed(0)} km · ${(plan.route.durationS / 3600).toFixed(1)} h · chegada ${fmtHour(plan.arrivalISO)} · via ${plan.route.provider}</small>`;
   timelineEl.innerHTML = plan.timeline
     .map((s) => {
@@ -100,7 +98,39 @@ function fmtHour(iso: string): string {
   return new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
 }
 
-shiftEl.addEventListener('input', renderTimeline);
+function baseDepartureISO(): string {
+  return new Date(departEl.value).toISOString();
+}
+
+// Slider faz re-planejamento real (debounced): desloca a saída e refaz o fetch
+// do clima. A rota vem do cache (24h), então custa só 1 request Open-Meteo.
+let shiftTimer = 0;
+let lastShiftMin = 0;
+shiftEl.addEventListener('input', () => {
+  const shiftMin = Number(shiftEl.value);
+  shiftLabel.textContent = `${shiftMin >= 0 ? '+' : ''}${shiftMin}min`;
+  if (!basePlan || !fromPlace || !toPlace) return;
+  // Preview instantâneo reposicionando os horários…
+  basePlan = planner.retimeTimeline(basePlan, shiftDate(basePlan.departureISO, shiftMin - lastShiftMin));
+  lastShiftMin = shiftMin;
+  renderPlan();
+  // …e correção com dados reais após parar de arrastar.
+  window.clearTimeout(shiftTimer);
+  shiftTimer = window.setTimeout(async () => {
+    try {
+      statusEl.textContent = 'Atualizando clima p/ novo horário…';
+      basePlan = await planner.planTrip({
+        origin: fromPlace as Place,
+        destination: toPlace as Place,
+        departureISO: shiftDate(baseDepartureISO(), Number(shiftEl.value)),
+      });
+      statusEl.textContent = '';
+      renderPlan();
+    } catch (e) {
+      statusEl.textContent = `Falhou ao atualizar: ${(e as Error).message} (mostrando horário aproximado)`;
+    }
+  }, 700);
+});
 
 goBtn.onclick = async () => {
   if (!fromPlace || !toPlace) {
@@ -120,8 +150,10 @@ goBtn.onclick = async () => {
       departureISO: new Date(departEl.value).toISOString(),
     });
     shiftEl.value = '0';
+    lastShiftMin = 0;
+    shiftLabel.textContent = '+0min';
     statusEl.textContent = '';
-    renderTimeline();
+    renderPlan();
   } catch (e) {
     statusEl.textContent = `Falhou: ${(e as Error).message}`;
   }
