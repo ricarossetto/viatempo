@@ -17,9 +17,9 @@ export interface MapHandle {
 
 export function initMap(el: HTMLElement): MapHandle {
   const map = L.map(el).setView([-29.5, -52.5], 7);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors · Clima: Open-Meteo.com',
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    maxZoom: 20,
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO · Clima: Open-Meteo.com',
   }).addTo(map);
   let layer: L.LayerGroup | null = null;
 
