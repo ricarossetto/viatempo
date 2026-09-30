@@ -30,7 +30,7 @@ app.innerHTML = `
 <div class="summary" id="summary"></div>
 <div id="map" role="img" aria-label="Mapa da rota com pontos de previsão do tempo"></div>
 <div class="roadstrip" id="timeline"></div>
-<footer>Trajeto por <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> (roteamento OSRM) · mapa base © CARTO · clima por <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> (CC-BY 4.0). Sem cadastro, sem chave.</footer>
+<footer>Trajeto por <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> (roteamento OSRM) · clima por <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> (CC-BY 4.0). Sem cadastro, sem chave.</footer>
 `;
 
 const fromEl = app.querySelector<HTMLInputElement>('#from')!;
