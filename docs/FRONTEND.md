@@ -1,5 +1,16 @@
 # Handoff do frontend
 
+## Servindo a landing (mesma origem)
+
+A landing vive em `apps/api/public/` (`index.html` autocontido + fontes em
+`assets/`). A API serve estático na mesma origem: `GET /` → landing,
+`/api/*` → backend. Sem CORS/CSP entre eles.
+
+- Rebuild após editar as fontes: `node scripts/build-landing.mjs` (a partir de `apps/api/`; réplica do `assets/v2/build.ps1`).
+- `VT.forecast(req)` (`assets/data.js`) chama `POST /api/trips/forecast` na mesma origem; `?api=http://localhost:3001` força outra base (modo standalone/`file://`).
+- Sem backend ou com erro ≥500: fallback local honesto (amostra real p/ Ijuí→POA, síntese p/ demais pares) rotulado como **amostra/simulado — nunca "ao vivo"**. Erro 400 (validação) propaga sem mascarar.
+- Faixa de procedência: `trip.live` → "ao vivo"; `trip.real` → "amostra real capturada em 30/09/2026"; senão "trajeto simulado".
+
 ## Fluxo sugerido
 
 1. `POST /api/trips/forecast` → `summary` (origem/destino resolvidos, distância, duração, `worstHazard`, `fallbackUsed`).

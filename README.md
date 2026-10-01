@@ -22,7 +22,7 @@ curl -s -X POST http://localhost:3001/api/trips/forecast \
 ## Estrutura
 
 ```text
-apps/api/                  API (weather batch, trips, health)
+apps/api/                  API (weather batch, trips, health) + landing em public/
 packages/weather-domain/   domínio normalizado, hazard, unidades, WMO
 packages/providers/        Open-Meteo, INMET, CPTEC, alertas, engine+cache
 packages/routing/          geocoding, OSRM, construção da timeline de ETAs
