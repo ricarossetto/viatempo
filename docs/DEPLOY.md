@@ -1,8 +1,23 @@
 # Executar e publicar
 
-## Nuvem (backend 24 h — sem PC ligado)
+## Cloudflare (recomendado — mesma infra do demo atual)
 
-Caminho mais simples (grátis, 2 cliques):
+O backend roda na edge sem Node: `worker/src/index.ts` reutiliza
+`@viatempo/providers` + `@viatempo/routing` (só Web APIs).
+
+```bash
+npx -y wrangler dev --port 8787     # testa local (landing + /api/*)
+npx -y wrangler deploy              # publica em https://viatempo-api.<conta>.workers.dev
+```
+
+`wrangler.jsonc` (raiz): worker `viatempo-api` + `assets` de
+`apps/api/public` (`run_worker_first: ["/api/*"]`). Precisa de
+`wrangler login` uma única vez. Domínio próprio (`clima.atrium.adv.br`)
+pendente de aprovação.
+
+## Render (alternativa sem Cloudflare)
+
+Caminho simples (grátis, 2 cliques):
 
 1. Conta em https://render.com (login com GitHub).
 2. New → Blueprint → aponte p/ o repo/branch → usa `render.yaml`.
