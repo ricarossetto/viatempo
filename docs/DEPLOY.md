@@ -1,5 +1,20 @@
 # Executar e publicar
 
+## Nuvem (backend 24 h — sem PC ligado)
+
+Caminho mais simples (grátis, 2 cliques):
+
+1. Conta em https://render.com (login com GitHub).
+2. New → Blueprint → aponte p/ o repo/branch → usa `render.yaml`.
+3. URL pública sai como `https://viatempo-api.onrender.com`
+   (plano free dorme sem uso; 1ª chamada demora ~50 s).
+
+Alternativas equivalentes: Fly.io (`fly launch` com o `Dockerfile`),
+Railway, ou qualquer VM com Docker (`docker build -t viatempo . &&
+docker run -p 3001:3001 viatempo`).
+
+A landing vai junto (mesma origem, `/` + `/api/*`).
+
 ## Local
 
 ```bash

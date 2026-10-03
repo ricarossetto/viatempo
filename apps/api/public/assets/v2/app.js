@@ -273,6 +273,7 @@
     if (state.route === "landing") { initScene(); setupReveal(); requestMood(); }
     else if (scene) { scene.go(document.documentElement.getAttribute("data-theme") === "dark" ? "noite" : "manha"); }
     if (state.route === "planner") bindPlanner();
+    if (state.route === "trip" && state.trip && typeof window !== "undefined" && window.L) initRealMap(state.trip);
     buildDrawer();
     var m = app.querySelector("#main-content");
     if (m) m.setAttribute("tabindex", "-1");
@@ -631,9 +632,45 @@
   }
 
   function mapCard(trip) {
+    var real = typeof window !== "undefined" && !!window.L;
     return '<section class="card card--flush" aria-labelledby="map-title" data-od-id="map">' +
       '<div class="card__head"><span class="label" id="map-title">Rota e estações</span><span class="note">' + trip.timeline.length + " estações</span></div>" +
-      mapSvg(trip) + "</section>";
+      (real ? realMap(trip) : mapSvg(trip)) + "</section>";
+  }
+  var HZCOLOR = { none: "#2e9e5b", attention: "#c99300", alert: "#d96c00", severe: "#d43a2f", unknown: "#8a8f98" };
+  function realMap(trip) {
+    return '<div class="map map--real">' +
+      '<div id="vt-map" role="application" aria-label="Mapa real da rota"></div>' +
+      '<span class="chip map__badge">' + icon("info") + "mapa real · OpenStreetMap</span>" +
+      '<div class="map__legend" aria-hidden="true">' + ["none", "attention", "alert", "severe", "unknown"].map(function (l) {
+        return '<span class="' + hzClass(l) + '"><i class="swatch" style="--hzc:var(--hazard-' + l + ')"></i>' + HZ[l].label + "</span>";
+      }).join("") + "</div></div>";
+  }
+  function initRealMap(trip) {
+    try {
+      var el = document.getElementById("vt-map");
+      if (!el || !window.L) return;
+      var pts = trip.timeline.map(function (p) { return [p.latitude, p.longitude]; });
+      var map = window.L.map(el);
+      window.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19, attribution: "© OpenStreetMap contributors"
+      }).addTo(map);
+      window.L.polyline(pts, { weight: 4, opacity: 0.85 }).addTo(map);
+      trip.timeline.forEach(function (p, i) {
+        var lvl = (p.weather.hazard && p.weather.hazard.level) || "unknown";
+        var cond = COND[p.weather.condition] || COND.unknown;
+        var label = i === 0 ? "origem" : i === trip.timeline.length - 1 ? "destino" : p.label;
+        window.L.circleMarker([p.latitude, p.longitude], {
+          radius: i === 0 || i === trip.timeline.length - 1 ? 9 : 7,
+          color: HZCOLOR[lvl] || HZCOLOR.unknown, fillColor: HZCOLOR[lvl] || HZCOLOR.unknown,
+          fillOpacity: 0.85, weight: 2
+        }).addTo(map)
+          .bindPopup("<b>" + esc(label) + "</b><br>" + esc(fmtHM(p.eta)) + " · " + esc(cond.label) +
+            (p.weather.temperature != null ? "<br>" + temp(p.weather.temperature) + "°C" : ""));
+      });
+      map.fitBounds(pts, { padding: [24, 24] });
+      map.attributionControl.setPrefix(false);
+    } catch (e) { /* mantém o espaço do mapa; o esquemático volta no próximo render sem Leaflet */ }
   }
   function mapSvg(trip) {
     var pts = trip.timeline;

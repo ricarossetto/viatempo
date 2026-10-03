@@ -7,6 +7,8 @@
 <meta name="description" content="ViaTempo cruza a rota, o horário de saída e a previsão hora a hora para mostrar o clima que você vai encontrar em cada trecho, no momento exato em que passar por ele.">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#e9edf1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>try{var t=localStorage.getItem("vt-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
 <style>
 /* OD-LAYOUT-PRIMITIVES v1 — structure only: display, flex/grid, overflow, wrapping, ratio.
@@ -641,6 +643,9 @@ h3, .h3 { font-size: 1.05rem; line-height: 1.25; letter-spacing: -0.012em; font-
 .map__marker[aria-current="true"] .pin { stroke: var(--accent); stroke-width: 2.6; }
 .map__marker .txt { fill: var(--ink-3); font-family: var(--font-mono); font-size: 12px; letter-spacing: .02em; }
 .map__badge { position: absolute; top: 12px; right: 12px; }
+.map--real #vt-map { height: 380px; border-radius: 12px; z-index: 0; }
+.map--real .leaflet-container { font: inherit; background: var(--bg, #eef1f4); }
+@media (max-width: 640px) { .map--real #vt-map { height: 300px; } }
 .map__legend { position: absolute; left: 12px; bottom: 12px; display: flex; flex-wrap: wrap; gap: var(--sp-3); padding: 8px 12px; border: 1px solid var(--glass-brd); border-radius: var(--r-pill); background: color-mix(in srgb, var(--bg) 62%, transparent); backdrop-filter: blur(14px); font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); }
 .map__legend span { display: inline-flex; align-items: center; gap: 6px; }
 
@@ -2146,6 +2151,7 @@ h3, .h3 { font-size: 1.05rem; line-height: 1.25; letter-spacing: -0.012em; font-
     if (state.route === "landing") { initScene(); setupReveal(); requestMood(); }
     else if (scene) { scene.go(document.documentElement.getAttribute("data-theme") === "dark" ? "noite" : "manha"); }
     if (state.route === "planner") bindPlanner();
+    if (state.route === "trip" && state.trip && typeof window !== "undefined" && window.L) initRealMap(state.trip);
     buildDrawer();
     var m = app.querySelector("#main-content");
     if (m) m.setAttribute("tabindex", "-1");
@@ -2504,9 +2510,45 @@ h3, .h3 { font-size: 1.05rem; line-height: 1.25; letter-spacing: -0.012em; font-
   }
 
   function mapCard(trip) {
+    var real = typeof window !== "undefined" && !!window.L;
     return '<section class="card card--flush" aria-labelledby="map-title" data-od-id="map">' +
       '<div class="card__head"><span class="label" id="map-title">Rota e estações</span><span class="note">' + trip.timeline.length + " estações</span></div>" +
-      mapSvg(trip) + "</section>";
+      (real ? realMap(trip) : mapSvg(trip)) + "</section>";
+  }
+  var HZCOLOR = { none: "#2e9e5b", attention: "#c99300", alert: "#d96c00", severe: "#d43a2f", unknown: "#8a8f98" };
+  function realMap(trip) {
+    return '<div class="map map--real">' +
+      '<div id="vt-map" role="application" aria-label="Mapa real da rota"></div>' +
+      '<span class="chip map__badge">' + icon("info") + "mapa real · OpenStreetMap</span>" +
+      '<div class="map__legend" aria-hidden="true">' + ["none", "attention", "alert", "severe", "unknown"].map(function (l) {
+        return '<span class="' + hzClass(l) + '"><i class="swatch" style="--hzc:var(--hazard-' + l + ')"></i>' + HZ[l].label + "</span>";
+      }).join("") + "</div></div>";
+  }
+  function initRealMap(trip) {
+    try {
+      var el = document.getElementById("vt-map");
+      if (!el || !window.L) return;
+      var pts = trip.timeline.map(function (p) { return [p.latitude, p.longitude]; });
+      var map = window.L.map(el);
+      window.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19, attribution: "© OpenStreetMap contributors"
+      }).addTo(map);
+      window.L.polyline(pts, { weight: 4, opacity: 0.85 }).addTo(map);
+      trip.timeline.forEach(function (p, i) {
+        var lvl = (p.weather.hazard && p.weather.hazard.level) || "unknown";
+        var cond = COND[p.weather.condition] || COND.unknown;
+        var label = i === 0 ? "origem" : i === trip.timeline.length - 1 ? "destino" : p.label;
+        window.L.circleMarker([p.latitude, p.longitude], {
+          radius: i === 0 || i === trip.timeline.length - 1 ? 9 : 7,
+          color: HZCOLOR[lvl] || HZCOLOR.unknown, fillColor: HZCOLOR[lvl] || HZCOLOR.unknown,
+          fillOpacity: 0.85, weight: 2
+        }).addTo(map)
+          .bindPopup("<b>" + esc(label) + "</b><br>" + esc(fmtHM(p.eta)) + " · " + esc(cond.label) +
+            (p.weather.temperature != null ? "<br>" + temp(p.weather.temperature) + "°C" : ""));
+      });
+      map.fitBounds(pts, { padding: [24, 24] });
+      map.attributionControl.setPrefix(false);
+    } catch (e) { /* mantém o espaço do mapa; o esquemático volta no próximo render sem Leaflet */ }
   }
   function mapSvg(trip) {
     var pts = trip.timeline;
