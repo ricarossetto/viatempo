@@ -22,6 +22,15 @@ const CORS = {
   "access-control-allow-headers": "content-type",
 };
 
+/** KV mínimo (sem @cloudflare/workers-types). */
+interface KV {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>;
+}
+interface Env {
+  INGEST?: KV;
+}
+
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -96,12 +105,57 @@ async function tripForecast(body: {
   }
 }
 
+/** Ingestão agendada: runs CPTEC + catálogo INMET → KV (30 min). */
+async function runIngest(env: Env): Promise<Record<string, unknown>> {
+  const fetchedAt = new Date().toISOString();
+  const cptec = await cptecStatus().catch((e) => ({ error: e instanceof Error ? e.message : String(e) }));
+  let stations: unknown = null;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 12000);
+    try {
+      const res = await fetch("https://apitempo.inmet.gov.br/estacoes/T", {
+        signal: ctrl.signal,
+        headers: { "User-Agent": "ViaTempo-ingestor/1.0", Accept: "application/json" },
+      });
+      const list = (await res.json()) as { CD_SITUACAO?: string }[];
+      const oper = list.filter((s) => s.CD_SITUACAO === "Operante").length;
+      stations = { total: list.length, operantes: oper };
+    } finally {
+      clearTimeout(t);
+    }
+  } catch (e) {
+    stations = { error: e instanceof Error ? e.message : String(e) };
+  }
+  const doc = { fetchedAt, cptec, stations };
+  try {
+    await env.INGEST?.put("ingest:latest", JSON.stringify(doc), { expirationTtl: 6 * 3600 });
+  } catch {
+    /* sem KV (dev sem persistência): só retorna o doc */
+  }
+  return doc;
+}
+
 export default {
-  async fetch(request: Request): Promise<Response> {
+  async scheduled(_controller: unknown, env: Env): Promise<void> {
+    await runIngest(env);
+  },
+
+  async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
     if (url.pathname === "/api/health") return json({ ok: true, version: "0.1.0", edge: true });
+
+    if (url.pathname === "/api/ingest" && request.method === "GET") {
+      const raw = await env.INGEST?.get("ingest:latest").catch(() => null);
+      if (!raw) return json({ ok: false, error: "sem snapshot (cron ainda não rodou)" }, 404);
+      return new Response(raw, { headers: { "content-type": "application/json; charset=utf-8", ...CORS } });
+    }
+
+    if (url.pathname === "/api/ingest/run" && request.method === "POST") {
+      return json({ ok: true, ...(await runIngest(env)) });
+    }
 
     if (url.pathname === "/api/status") {
       try {
