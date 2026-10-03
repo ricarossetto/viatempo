@@ -1,28 +1,54 @@
 {
   "name": "viatempo",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "ViaTempo — planejador meteorológico de viagens rodoviárias",
   "type": "module",
+  "packageManager": "npm@10",
+  "workspaces": [
+    "apps/api",
+    "packages/*",
+    "services/*"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "dev:api": "npm run dev --workspace apps/api",
+    "build:engine": "npm run build --workspaces",
+    "test": "npm run test --workspaces --if-present",
+    "test:offline": "npm run test:offline --workspace apps/api",
+    "smoke": "npm run smoke --workspace apps/api",
+    "ingest": "npm run ingest --workspace services-meteo-ingestor",
     "test:e2e": "node e2e/autodebug.mjs",
     "test:prod": "node e2e/smoke-prod.mjs",
     "test:routing": "node e2e/routing.test.mjs",
     "test:journey": "esbuild e2e/journey.test.mjs --bundle --platform=node --format=esm --outfile=node_modules/.cache/journey.test.mjs --log-level=error && node node_modules/.cache/journey.test.mjs",
     "cf:dev": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy"
+    "cf:api-dev": "npx -y wrangler dev -c wrangler.api.jsonc --port 8787",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:api": "npx -y wrangler deploy -c wrangler.api.jsonc"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
     "@types/leaflet": "^1.9.22",
+    "@types/node": "^20.16.0",
     "esbuild": "^0.28.2",
     "playwright": "^1.63.0",
+    "tsx": "^4.19.0",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
+    "vitest": "^2.1.0",
     "wrangler": "^4.144.0"
   },
   "dependencies": {
-    "leaflet": "^1.9.4"
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "leaflet": "^1.9.4",
+    "zod": "^3.23.0"
   }
 }

@@ -1,5 +1,6 @@
 # ViaTempo
 
+<<<<<<< HEAD
 > Weather along the way, at the right time.
 
 [Live Demo](https://viatempo.ricarossetto.workers.dev) · [Português](./README.pt-BR.md)
@@ -168,6 +169,62 @@ npm run deploy   # build + publish frontend and Worker
 - Rollback: dashboard → Workers & Pages → Deployments → promote a previous version.
 - Secrets (when needed): `wrangler secret put NAME`. Never commit `.dev.vars` or tokens.
 
+## Backend engine (INMET + CPTEC + edge API)
+
+Same product, server-side weather engine: normalized domain, INMET
+observations, CPTEC model tracking (WRF/MERGE GRIB), fallback chain,
+hazard rules, batch + trip endpoints. Lives in `apps/api/`,
+`packages/*`, `services/meteo-ingestor/`, `worker/`.
+
+- Local API: `npm run dev:api` → http://localhost:3001 (`/` landing, `/api/*`)
+- Edge API + cron ingest: `npm run cf:api-dev` → deploy with `npm run deploy:api`
+  (`wrangler.api.jsonc`, worker `viatempo-api` + KV `INGEST`)
+- Tests: `npm run test:offline` (19, deterministic) · `npm run smoke` (live sources)
+- Research & decisions: `docs/PESQUISA-FONTES.md`, `docs/COMPARACAO-MODELOS.md`,
+  `docs/ARQUITETURA.md`, `docs/API.md`, `docs/FRONTEND.md`, `docs/RELATORIO.md`
+
 ## License
 
 MIT. See [LICENSE](./LICENSE).
+=======
+Planejador meteorológico de viagens rodoviárias.
+
+> Estado: MVP funcional com dados reais (ver `docs/RELATORIO.md`).
+
+## Quickstart
+
+```bash
+npm install
+npm run dev --workspace apps/api
+# API em http://localhost:3001
+```
+
+```bash
+# timeline Ijuí → Porto Alegre
+curl -s -X POST http://localhost:3001/api/trips/forecast \
+  -H 'content-type: application/json' \
+  -d '{"origin":"Ijuí, RS","destination":"Porto Alegre, RS","departure":"2026-10-01T14:30:00-03:00"}' | head -c 2000
+```
+
+## Estrutura
+
+```text
+apps/api/                  API (weather batch, trips, health) + landing em public/
+packages/weather-domain/   domínio normalizado, hazard, unidades, WMO
+packages/providers/        Open-Meteo, INMET, CPTEC, alertas, engine+cache
+packages/routing/          geocoding, OSRM, construção da timeline de ETAs
+services/meteo-ingestor/   ingestão programada (Python xarray/cfgrib + Node)
+data/                      amostras reais + fixtures determinísticas
+docs/                      pesquisa, arquitetura, API, frontend, relatório
+examples/                  JSONs reais + mocks para o frontend
+scripts/                   smoke tests reais, benchmark
+```
+
+## Docs
+
+- `docs/PESQUISA-FONTES.md` — situação operacional verificada em 2026-09-30
+- `docs/COMPARACAO-MODELOS.md` — comparação com evidência + decisão
+- `docs/ARQUITETURA.md`
+- `docs/API.md` + `docs/FRONTEND.md`
+- `docs/RELATORIO.md` — relatório final objetivo
+>>>>>>> backend-work

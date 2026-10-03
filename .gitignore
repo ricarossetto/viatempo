@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+data/ingest/
 
 # Skills de terceiros e caches locais (não versionar)
 .opencode/
@@ -20,7 +21,7 @@ dist-ssr
 e2e/evidencias/
 
 # Cloudflare Wrangler (gerados, com segredos locais)
-.wrangler
+.wrangler/
 .dev.vars*
 
 # Editor directories and files

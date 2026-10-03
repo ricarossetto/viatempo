@@ -1,0 +1,30 @@
+{
+  "name": "viatempo-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc --noEmit",
+    "test": "vitest run",
+    "test:offline": "vitest run tests/offline",
+    "smoke": "tsx scripts/smoke.ts"
+  },
+  "dependencies": {
+    "@viatempo/providers": "0.1.0",
+    "@viatempo/routing": "0.1.0",
+    "@viatempo/weather-domain": "0.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.16.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
